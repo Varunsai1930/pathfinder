@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0.0",
+  "roles": [
+    {
+      "id": "frontend-developer",
+      "title": "Frontend Developer",
+      "summary": "Build accessible, responsive interfaces that turn product ideas into dependable browser experiences.",
+      "onet_soc_code": "15-1254.00",
+      "onet_reference_url": "https://www.onetonline.org/link/summary/15-1254.00",
+      "grounding": {"occupation_title": "Web Developers", "relationship": "Closest O*NET occupation reference for Pathfinder's frontend path. Pathfinder's role title and five milestones are original student-facing curation, not an O*NET occupation or assessment result.", "source_updated": "2026"},
+      "riasec": {"realistic": 25, "investigative": 72, "artistic": 68, "social": 42, "enterprising": 35, "conventional": 45},
+      "work_style": {"analytical": 70, "creative": 82, "collaborative": 64, "structured": 50, "systems_oriented": 55},
+      "skills": [
+        {"id": "html-css", "name": "HTML and CSS", "tier": "core"},
+        {"id": "javascript", "name": "JavaScript", "tier": "core"},
+        {"id": "react", "name": "React", "tier": "core"},
+        {"id": "git", "name": "Git and GitHub", "tier": "core"},
+        {"id": "accessibility", "name": "Web accessibility", "tier": "supporting"},
+        {"id": "testing", "name": "Frontend testing", "tier": "supporting"}
+      ],
+      "milestones": [
+        {"id": "frontend-web-foundations", "sequence": 1, "title": "Web foundations", "objective": "Create semantic pages that adapt cleanly across mobile and desktop screens.", "skills": ["html-css", "accessibility"], "estimated_effort_hours": 8, "practical_task": "Build a responsive student-event landing page from a written brief.", "portfolio_deliverable": "Deployed responsive landing page with an accessibility checklist.", "resources": [{"title": "MDN Learn Web Development", "url": "https://developer.mozilla.org/en-US/docs/Learn", "provider": "MDN"}]},
+        {"id": "frontend-javascript", "sequence": 2, "title": "Interactive JavaScript", "objective": "Use JavaScript to manage user input, state, and dynamic interface updates.", "skills": ["javascript", "git"], "estimated_effort_hours": 12, "practical_task": "Create a searchable task board using browser storage.", "portfolio_deliverable": "Interactive task board repository with meaningful commits.", "resources": [{"title": "JavaScript Guide", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", "provider": "MDN"}]},
+        {"id": "frontend-react", "sequence": 3, "title": "React application patterns", "objective": "Build component-based interfaces with predictable state and reusable UI patterns.", "skills": ["react", "javascript"], "estimated_effort_hours": 14, "practical_task": "Convert the task board into a React application with reusable components.", "portfolio_deliverable": "React task board deployed with a clear component structure.", "resources": [{"title": "React Learn", "url": "https://react.dev/learn", "provider": "React"}]},
+        {"id": "frontend-quality", "sequence": 4, "title": "Quality and accessibility", "objective": "Validate essential user flows and improve accessibility before sharing a project.", "skills": ["accessibility", "testing"], "estimated_effort_hours": 8, "practical_task": "Write tests for one important interaction and audit keyboard navigation.", "portfolio_deliverable": "Tested interface with an accessibility improvement summary.", "resources": [{"title": "Web Accessibility Tutorials", "url": "https://www.w3.org/WAI/tutorials/", "provider": "W3C WAI"}]},
+        {"id": "frontend-portfolio", "sequence": 5, "title": "Portfolio-ready product", "objective": "Ship a polished end-to-end interface and explain the product choices behind it.", "skills": ["react", "git", "accessibility"], "estimated_effort_hours": 16, "practical_task": "Build a student opportunity tracker with search, filters, and saved items.", "portfolio_deliverable": "Live portfolio project with README, screenshots, and product case study.", "resources": [{"title": "GitHub Docs", "url": "https://docs.github.com/en", "provider": "GitHub"}]}
+      ],
+      "portfolio_project": {"title": "Student Opportunity Tracker", "brief": "Design and build a responsive tool for students to discover, filter, save, and track campus opportunities.", "evidence_of_readiness": ["Accessible responsive UI", "Reusable React components", "Clear deployed demo and README"]}
+    },
+    {
+      "id": "backend-developer",
+      "title": "Backend Developer",
+      "summary": "Design APIs, data models, and server-side systems that make digital products reliable and secure.",
+      "onet_soc_code": "15-1252.00",
+      "onet_reference_url": "https://www.onetonline.org/link/summary/15-1252.00",
+      "grounding": {"occupation_title": "Software Developers", "relationship": "Closest O*NET occupation reference for Pathfinder's backend path. Pathfinder's role title and five milestones are original student-facing curation, not an O*NET occupation or assessment result.", "source_updated": "2026"},
+      "riasec": {"realistic": 32, "investigative": 84, "artistic": 28, "social": 38, "enterprising": 30, "conventional": 65},
+      "work_style": {"analytical": 88, "creative": 45, "collaborative": 56, "structured": 76, "systems_oriented": 88},
+      "skills": [
+        {"id": "python", "name": "Python", "tier": "core"},
+        {"id": "api-design", "name": "API design", "tier": "core"},
+        {"id": "sql", "name": "SQL and relational data", "tier": "core"},
+        {"id": "git", "name": "Git and GitHub", "tier": "core"},
+        {"id": "authentication", "name": "Authentication basics", "tier": "supporting"},
+        {"id": "testing", "name": "Automated testing", "tier": "supporting"}
+      ],
+      "milestones": [
+        {"id": "backend-python", "sequence": 1, "title": "Python foundations", "objective": "Write readable Python programs that process data and handle common errors.", "skills": ["python", "git"], "estimated_effort_hours": 10, "practical_task": "Build a command-line study-session tracker.", "portfolio_deliverable": "Version-controlled command-line application with setup instructions.", "resources": [{"title": "Python Tutorial", "url": "https://docs.python.org/3/tutorial/", "provider": "Python"}]},
+        {"id": "backend-api", "sequence": 2, "title": "API fundamentals", "objective": "Create an HTTP API with validated requests and clear responses.", "skills": ["python", "api-design"], "estimated_effort_hours": 12, "practical_task": "Expose study sessions through a small FastAPI CRUD API.", "portfolio_deliverable": "Documented API with interactive OpenAPI docs.", "resources": [{"title": "FastAPI Tutorial", "url": "https://fastapi.tiangolo.com/tutorial/", "provider": "FastAPI"}]},
+        {"id": "backend-data", "sequence": 3, "title": "Persistent data", "objective": "Model application data and safely query a relational database.", "skills": ["sql", "api-design"], "estimated_effort_hours": 12, "practical_task": "Persist users and study sessions in PostgreSQL.", "portfolio_deliverable": "API backed by a documented relational schema.", "resources": [{"title": "PostgreSQL Tutorial", "url": "https://www.postgresql.org/docs/current/tutorial.html", "provider": "PostgreSQL"}]},
+        {"id": "backend-security", "sequence": 4, "title": "Security and testing", "objective": "Protect user data and verify the API's important behaviour.", "skills": ["authentication", "testing"], "estimated_effort_hours": 10, "practical_task": "Add token-based authentication and endpoint tests.", "portfolio_deliverable": "Protected API with automated tests for core flows.", "resources": [{"title": "OWASP API Security", "url": "https://owasp.org/www-project-api-security/", "provider": "OWASP"}]},
+        {"id": "backend-portfolio", "sequence": 5, "title": "Production-ready service", "objective": "Deploy a reliable service with documentation that another developer can use.", "skills": ["api-design", "sql", "testing"], "estimated_effort_hours": 16, "practical_task": "Deploy the study tracker API and document environment configuration.", "portfolio_deliverable": "Live API, API docs, tests, and architecture overview.", "resources": [{"title": "Twelve-Factor App", "url": "https://12factor.net/", "provider": "12factor.net"}]}
+      ],
+      "portfolio_project": {"title": "Student Study Planner API", "brief": "Build a secure backend that lets students plan study sessions, track goals, and retrieve a useful weekly summary.", "evidence_of_readiness": ["Validated API design", "Relational data modelling", "Authentication and automated tests"]}
+    },
+    {
+      "id": "data-analyst",
+      "title": "Data Analyst",
+      "summary": "Turn messy data into clear analysis, dashboards, and recommendations that support better decisions.",
+      "onet_soc_code": "15-2051.01",
+      "onet_reference_url": "https://www.onetonline.org/link/summary/15-2051.01",
+      "grounding": {"occupation_title": "Business Intelligence Analysts", "relationship": "Closest O*NET occupation reference for Pathfinder's entry-level data-analyst path. O*NET lists Data Analyst as an alternate search title; Pathfinder's role title and milestones are original curation.", "source_updated": "2026"},
+      "riasec": {"realistic": 35, "investigative": 90, "artistic": 40, "social": 48, "enterprising": 42, "conventional": 76},
+      "work_style": {"analytical": 94, "creative": 55, "collaborative": 60, "structured": 82, "systems_oriented": 70},
+      "skills": [
+        {"id": "sql", "name": "SQL and relational data", "tier": "core"},
+        {"id": "spreadsheets", "name": "Spreadsheets", "tier": "core"},
+        {"id": "python", "name": "Python", "tier": "core"},
+        {"id": "data-visualization", "name": "Data visualisation", "tier": "core"},
+        {"id": "statistics", "name": "Descriptive statistics", "tier": "supporting"},
+        {"id": "data-storytelling", "name": "Data storytelling", "tier": "supporting"}
+      ],
+      "milestones": [
+        {"id": "data-spreadsheets", "sequence": 1, "title": "Spreadsheet analysis", "objective": "Clean, summarize, and inspect structured data using repeatable spreadsheet techniques.", "skills": ["spreadsheets", "statistics"], "estimated_effort_hours": 8, "practical_task": "Analyze student event attendance and identify participation trends.", "portfolio_deliverable": "Clean workbook with documented assumptions and summary charts.", "resources": [{"title": "Google Sheets Training", "url": "https://support.google.com/a/users/answer/9282959", "provider": "Google"}]},
+        {"id": "data-sql", "sequence": 2, "title": "Query business questions", "objective": "Use SQL to answer precise questions from relational data.", "skills": ["sql"], "estimated_effort_hours": 12, "practical_task": "Query an event-registration dataset for retention and attendance patterns.", "portfolio_deliverable": "SQL query notebook with written findings.", "resources": [{"title": "SQLBolt", "url": "https://sqlbolt.com/", "provider": "SQLBolt"}]},
+        {"id": "data-python", "sequence": 3, "title": "Analyze with Python", "objective": "Use Python to clean datasets and repeat analyses reproducibly.", "skills": ["python", "statistics"], "estimated_effort_hours": 12, "practical_task": "Use pandas to clean and analyze a public student-outcomes dataset.", "portfolio_deliverable": "Reproducible notebook with cleaning decisions explained.", "resources": [{"title": "pandas Getting Started", "url": "https://pandas.pydata.org/docs/getting_started/index.html", "provider": "pandas"}]},
+        {"id": "data-visualization", "sequence": 4, "title": "Communicate through visuals", "objective": "Select charts that accurately answer the intended decision question.", "skills": ["data-visualization", "data-storytelling"], "estimated_effort_hours": 10, "practical_task": "Create a dashboard or report with three decision-focused visuals.", "portfolio_deliverable": "Annotated dashboard and executive summary.", "resources": [{"title": "Data Visualization Catalogue", "url": "https://datavizcatalogue.com/", "provider": "Data Visualization Catalogue"}]},
+        {"id": "data-portfolio", "sequence": 5, "title": "End-to-end case study", "objective": "Frame a decision, analyse real data, and present a recommendation with limitations.", "skills": ["sql", "python", "data-storytelling"], "estimated_effort_hours": 16, "practical_task": "Complete an end-to-end analysis of a public mobility or education dataset.", "portfolio_deliverable": "Portfolio case study with source data, notebook, dashboard, and recommendations.", "resources": [{"title": "Kaggle Datasets", "url": "https://www.kaggle.com/datasets", "provider": "Kaggle"}]}
+      ],
+      "portfolio_project": {"title": "Student Outcomes Insight Dashboard", "brief": "Investigate a public education dataset and deliver a dashboard with evidence-based recommendations for student-support teams.", "evidence_of_readiness": ["SQL and Python analysis", "Clear visual communication", "Documented assumptions and recommendations"]}
+    },
+    {
+      "id": "cloud-devops-engineer",
+      "title": "Cloud/DevOps Engineer",
+      "summary": "Automate delivery and operate cloud infrastructure so applications remain secure, observable, and reliable.",
+      "onet_soc_code": "15-1244.00",
+      "onet_reference_url": "https://www.onetonline.org/link/summary/15-1244.00",
+      "grounding": {"occupation_title": "Network and Computer Systems Administrators", "relationship": "Infrastructure reference for Pathfinder's Cloud/DevOps path. It complements the DevOps Engineer title listed under O*NET Software Developers; Pathfinder's combined path is original curation.", "source_updated": "2026"},
+      "riasec": {"realistic": 58, "investigative": 80, "artistic": 20, "social": 35, "enterprising": 27, "conventional": 70},
+      "work_style": {"analytical": 86, "creative": 35, "collaborative": 62, "structured": 84, "systems_oriented": 96},
+      "skills": [
+        {"id": "linux", "name": "Linux and shell", "tier": "core"},
+        {"id": "git", "name": "Git and GitHub", "tier": "core"},
+        {"id": "cloud-basics", "name": "Cloud fundamentals", "tier": "core"},
+        {"id": "containers", "name": "Containers", "tier": "core"},
+        {"id": "ci-cd", "name": "CI/CD", "tier": "supporting"},
+        {"id": "monitoring", "name": "Monitoring and observability", "tier": "supporting"}
+      ],
+      "milestones": [
+        {"id": "cloud-linux", "sequence": 1, "title": "Linux and networking basics", "objective": "Navigate a Linux environment and explain how basic web traffic reaches an application.", "skills": ["linux"], "estimated_effort_hours": 10, "practical_task": "Use shell commands to inspect files, processes, and a local web server.", "portfolio_deliverable": "Command reference and troubleshooting notes in a repository.", "resources": [{"title": "Linux Journey", "url": "https://linuxjourney.com/", "provider": "Linux Journey"}]},
+        {"id": "cloud-git", "sequence": 2, "title": "Versioned delivery", "objective": "Use Git workflows that support safe collaboration and repeatable releases.", "skills": ["git"], "estimated_effort_hours": 6, "practical_task": "Set up a repository with branches, pull requests, and release notes.", "portfolio_deliverable": "Repository demonstrating an understandable delivery history.", "resources": [{"title": "GitHub Skills", "url": "https://skills.github.com/", "provider": "GitHub"}]},
+        {"id": "cloud-containers", "sequence": 3, "title": "Containerized application", "objective": "Package a simple service so it runs consistently across environments.", "skills": ["containers", "linux"], "estimated_effort_hours": 10, "practical_task": "Containerize a small API and run it locally with configuration variables.", "portfolio_deliverable": "Dockerfile and documented local run command.", "resources": [{"title": "Docker Get Started", "url": "https://docs.docker.com/get-started/", "provider": "Docker"}]},
+        {"id": "cloud-foundations", "sequence": 4, "title": "Cloud deployment", "objective": "Deploy a containerized service with a minimal, secure cloud configuration.", "skills": ["cloud-basics", "containers"], "estimated_effort_hours": 12, "practical_task": "Deploy the containerized API to a cloud platform's starter tier.", "portfolio_deliverable": "Deployment diagram and operational runbook.", "resources": [{"title": "AWS Cloud Practitioner Essentials", "url": "https://aws.amazon.com/training/digital/aws-cloud-practitioner-essentials/", "provider": "AWS"}]},
+        {"id": "cloud-automation", "sequence": 5, "title": "Automate and observe", "objective": "Add a delivery pipeline and basic health monitoring for a deployed service.", "skills": ["ci-cd", "monitoring"], "estimated_effort_hours": 12, "practical_task": "Configure CI checks and expose a health endpoint with basic logs.", "portfolio_deliverable": "Automated workflow plus a concise reliability checklist.", "resources": [{"title": "GitHub Actions Documentation", "url": "https://docs.github.com/en/actions", "provider": "GitHub"}]}
+      ],
+      "portfolio_project": {"title": "Deployable Student API", "brief": "Containerize and deploy a small student-facing API, then add an automated delivery check and practical runbook.", "evidence_of_readiness": ["Linux and container skills", "Cloud deployment understanding", "Basic automation and observability"]}
+    }
+  ]
+}
