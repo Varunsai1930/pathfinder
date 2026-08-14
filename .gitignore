@@ -2,14 +2,22 @@
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+frontend/.env
+frontend/.vercel/
 
 # Python
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
 backend/.env
+backend/.vercel/
 **/*.pyc
+
+# Datasets and submission scratch
+*.csv
+*.png
 
 # OS/editor
 .DS_Store
 .vscode/
+.vercel/
