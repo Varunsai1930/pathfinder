@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AssessmentPage } from './components/Assessment/AssessmentPage'
 import { config } from './lib/config'
 import { supabase } from './lib/supabase'
@@ -13,8 +13,29 @@ const roles = [
 function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'assessment'>('landing')
   const [email, setEmail] = useState('')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) return
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        setUserEmail(session.user.email)
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
 
   async function requestSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -34,6 +55,13 @@ function App() {
     setIsSubmitting(false)
   }
 
+  async function handleSignOut() {
+    if (!supabase) return
+    await supabase.auth.signOut()
+    setUserEmail(null)
+    setMessage('You have been signed out.')
+  }
+
   if (currentView === 'assessment') {
     return (
       <main>
@@ -50,13 +78,20 @@ function App() {
         </a>
         <a href="#how-it-works">How it works</a>
         <a href="#paths">Career paths</a>
-        <button
-          type="button"
-          className="nav-cta"
-          onClick={() => setCurrentView('assessment')}
-        >
-          Start Assessment →
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {userEmail && (
+            <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+              {userEmail}
+            </span>
+          )}
+          <button
+            type="button"
+            className="nav-cta"
+            onClick={() => setCurrentView('assessment')}
+          >
+            Start Assessment →
+          </button>
+        </div>
       </nav>
 
       <section className="hero" id="top">
@@ -77,27 +112,41 @@ function App() {
             </button>
           </div>
 
-          <form className="sign-in" onSubmit={requestSignIn}>
-            <label htmlFor="email">Or save progress with your email</label>
-            <div className="form-row">
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-              <button disabled={isSubmitting}>
-                {isSubmitting ? 'Sending…' : 'Get started'}
+          {userEmail ? (
+            <div className="sign-in" style={{ marginTop: '1.5rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>Signed in as: {userEmail}</p>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                style={{ background: 'transparent', border: '1px solid #64748b', color: '#cbd5e1', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Sign out
               </button>
             </div>
-            {message && (
-              <p className="message" role="status">
-                {message}
-              </p>
-            )}
-          </form>
+          ) : (
+            <form className="sign-in" onSubmit={requestSignIn}>
+              <label htmlFor="email">Or save progress with your email</label>
+              <div className="form-row">
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
+                <button disabled={isSubmitting}>
+                  {isSubmitting ? 'Sending…' : 'Get started'}
+                </button>
+              </div>
+              {message && (
+                <p className="message" role="status">
+                  {message}
+                </p>
+              )}
+            </form>
+          )}
+
           {!config.hasSupabaseAuth && (
             <p className="preview-note">Preview mode: authentication configuration is pending.</p>
           )}

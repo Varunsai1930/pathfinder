@@ -32,6 +32,42 @@ class MatchProfile(BaseModel):
     work_style_responses: WorkStyleResponses
 
 
+class CareerCertainty(str, Enum):
+    EXPLORING = "exploring"
+    DECIDING = "deciding"
+    COMMITTED = "committed"
+
+
+class ProfileConstraints(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hours_per_week: int = Field(ge=1, le=168)
+    target_timeline_weeks: int = Field(ge=1, le=104)
+    career_certainty: CareerCertainty
+
+
+class ProfilePayload(BaseModel):
+    """Full assessment payload submitted to POST /profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interest_responses: dict[str, int] = Field(min_length=18, max_length=18)
+    skill_confidence: dict[str, SkillConfidence] = Field(default_factory=dict)
+    work_style_responses: WorkStyleResponses
+    constraints: ProfileConstraints
+
+
+class ProfileResponse(BaseModel):
+    """Persisted user profile returned from GET /profile."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    interest_responses: dict[str, int]
+    skill_confidence: dict[str, SkillConfidence]
+    work_style_responses: WorkStyleResponses
+    constraints: ProfileConstraints
+
+
 class ScoreBreakdown(BaseModel):
     interest_alignment: float = Field(ge=0, le=100)
     skill_readiness: float = Field(ge=0, le=100)

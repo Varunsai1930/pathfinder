@@ -3,6 +3,8 @@ import {
   fetchCatalogData,
   type AppCatalogBundle,
 } from '../../data/assessmentCatalog'
+import { config } from '../../lib/config'
+import { supabase } from '../../lib/supabase'
 import type {
   AssessmentPayload,
   AssessmentState,
@@ -48,6 +50,9 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
   const [assessmentState, setAssessmentState] = useState<AssessmentState>(INITIAL_STATE)
   const [missingFieldIds, setMissingFieldIds] = useState<string[]>([])
   const [validationError, setValidationError] = useState<string | null>(null)
+
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [submittedPayload, setSubmittedPayload] = useState<AssessmentPayload | null>(null)
 
   const loadData = async () => {
@@ -79,6 +84,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     }))
     setMissingFieldIds((prev) => prev.filter((id) => id !== questionId))
     if (validationError) setValidationError(null)
+    if (submitError) setSubmitError(null)
   }
 
   const handleSkillChange = (skillId: string, value: SkillConfidence) => {
@@ -91,6 +97,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     }))
     setMissingFieldIds((prev) => prev.filter((id) => id !== skillId))
     if (validationError) setValidationError(null)
+    if (submitError) setSubmitError(null)
   }
 
   const handleBulkSetNone = () => {
@@ -106,6 +113,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     })
     setMissingFieldIds([])
     if (validationError) setValidationError(null)
+    if (submitError) setSubmitError(null)
   }
 
   const handleWorkStyleChange = (field: keyof WorkStyleResponses, value: number) => {
@@ -118,6 +126,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     }))
     setMissingFieldIds((prev) => prev.filter((id) => id !== `work_style.${field}`))
     if (validationError) setValidationError(null)
+    if (submitError) setSubmitError(null)
   }
 
   const handleConstraintsChange = <K extends keyof ConstraintsState>(
@@ -133,6 +142,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     }))
     setMissingFieldIds((prev) => prev.filter((id) => id !== field))
     if (validationError) setValidationError(null)
+    if (submitError) setSubmitError(null)
   }
 
   // Step validation
@@ -234,12 +244,13 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
   const handleBack = () => {
     setValidationError(null)
+    setSubmitError(null)
     setMissingFieldIds([])
     setCurrentStep((prev) => Math.max(1, prev - 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateCurrentStep(3)) return
 
     const payload: AssessmentPayload = {
@@ -259,9 +270,58 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
       },
     }
 
-    console.log('Assessment payload:', payload)
-    setSubmittedPayload(payload)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      setIsSubmitting(true)
+      setSubmitError(null)
+
+      if (!supabase) {
+        throw new Error('Supabase client is not configured. Please check your application environment variables.')
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        throw new Error(`Authentication session error: ${sessionError.message}`)
+      }
+
+      const token = sessionData?.session?.access_token
+      if (!token) {
+        throw new Error(
+          'You must be signed in to save your assessment profile. Please enter your email on the overview page to sign in, then resubmit.'
+        )
+      }
+
+      const res = await fetch(`${config.apiUrl}/api/v1/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        let errorDetail = `Failed to save profile (${res.status} ${res.statusText})`
+        try {
+          const errJson = await res.json()
+          if (errJson?.detail) {
+            errorDetail = errJson.detail
+          }
+        } catch {
+          // ignore json parse error
+        }
+        throw new Error(errorDetail)
+      }
+
+      const savedData: AssessmentPayload = await res.json()
+      setSubmittedPayload(savedData)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown network error while saving profile.'
+      setSubmitError(message)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Loading State
@@ -320,16 +380,16 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     return (
       <div className="assessment-submitted-container" role="status" aria-live="polite">
         <div className="submitted-card">
-          <span className="eyebrow">STEP COMPLETE</span>
-          <h2>Assessment Ready for Matching</h2>
+          <span className="eyebrow">PERSISTENCE CONFIRMED</span>
+          <h2>Assessment Saved to Profile</h2>
           <p className="submitted-lede">
-            All 3 sections completed. The assembled payload was successfully logged to the console in the exact shape expected by the backend.
+            Your career profile has been successfully validated and persisted to Supabase Postgres.
           </p>
 
           <div className="payload-preview-box">
             <div className="payload-preview-header">
-              <span className="dm-mono-tag">CONSOLE LOGGED PAYLOAD</span>
-              <span className="status-badge">Valid MatchProfile</span>
+              <span className="dm-mono-tag">PERSISTED PROFILE (200 OK)</span>
+              <span className="status-badge">POST /profile Succeeded</span>
             </div>
             <pre className="payload-code">
               {JSON.stringify(submittedPayload, null, 2)}
@@ -384,6 +444,13 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         </div>
       )}
 
+      {submitError && (
+        <div className="validation-banner" style={{ background: '#fef2f2', borderColor: '#f87171', color: '#991b1b' }} role="alert">
+          <span className="validation-icon">✕</span>
+          <span className="validation-text">{submitError}</span>
+        </div>
+      )}
+
       <main className="assessment-body">
         {currentStep === 1 && (
           <SectionInterests
@@ -417,7 +484,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
       <footer className="assessment-footer-actions">
         {currentStep > 1 ? (
-          <button type="button" className="btn-secondary btn-nav" onClick={handleBack}>
+          <button type="button" className="btn-secondary btn-nav" onClick={handleBack} disabled={isSubmitting}>
             ← Back to {STEP_TITLES[currentStep - 2]}
           </button>
         ) : (
@@ -429,8 +496,13 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
             Continue to {STEP_TITLES[currentStep]} →
           </button>
         ) : (
-          <button type="button" className="btn-primary btn-nav btn-submit" onClick={handleSubmit}>
-            Submit assessment →
+          <button
+            type="button"
+            className="btn-primary btn-nav btn-submit"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Saving Profile…' : 'Submit assessment →'}
           </button>
         )}
       </footer>
