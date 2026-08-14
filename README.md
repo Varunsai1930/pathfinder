@@ -35,3 +35,4 @@ The frontend works in an unauthenticated preview state until Supabase variables 
 ## Environment variables
 
 Never commit populated environment files. Copy the provided templates and add values from the relevant Supabase project and LLM provider when those services are configured.
+# pathfinder
