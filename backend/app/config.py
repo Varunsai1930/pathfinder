@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     pathfinder_cors_origins: str = "http://localhost:5173"
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
+    supabase_service_role_key: str | None = None
     supabase_jwt_secret: str = ""
     supabase_jwt_audience: str = "authenticated"
     openai_api_key: str | None = None

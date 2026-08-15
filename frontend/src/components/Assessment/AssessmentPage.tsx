@@ -13,6 +13,7 @@ import type {
   SkillConfidence,
   WorkStyleResponses,
 } from '../../types/assessment'
+import { ResultsPage, type MatchResponse } from '../Results/ResultsPage'
 import { ProgressBar } from './ProgressBar'
 import { SectionConstraints } from './SectionConstraints'
 import { SectionInterests } from './SectionInterests'
@@ -53,7 +54,9 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submittedPayload, setSubmittedPayload] = useState<AssessmentPayload | null>(null)
+  const [matchResult, setMatchResult] = useState<MatchResponse | null>(null)
+  const [matchLoading, setMatchLoading] = useState(false)
+  const [matchError, setMatchError] = useState<string | null>(null)
 
   const loadData = async () => {
     try {
@@ -312,12 +315,38 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         throw new Error(errorDetail)
       }
 
-      const savedData: AssessmentPayload = await res.json()
-      setSubmittedPayload(savedData)
+      await res.json()
+
+      // Profile saved — now compute matches
+      setMatchLoading(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
+
+      const matchRes = await fetch(`${config.apiUrl}/api/v1/match`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!matchRes.ok) {
+        let matchDetail = `Matching failed (${matchRes.status})`
+        try {
+          const errBody = await matchRes.json()
+          if (errBody?.detail) matchDetail = typeof errBody.detail === 'string' ? errBody.detail : JSON.stringify(errBody.detail)
+        } catch { /* ignore */ }
+        setMatchError(matchDetail)
+        setMatchLoading(false)
+        return
+      }
+
+      const matchData: MatchResponse = await matchRes.json()
+      setMatchResult(matchData)
+      setMatchLoading(false)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown network error while saving profile.'
       setSubmitError(message)
+      setMatchLoading(false)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setIsSubmitting(false)
@@ -375,46 +404,51 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     totalCount = 8
   }
 
-  // Submitted view confirmation
-  if (submittedPayload) {
+  // Match loading state
+  if (matchLoading) {
     return (
-      <div className="assessment-submitted-container" role="status" aria-live="polite">
-        <div className="submitted-card">
-          <span className="eyebrow">PERSISTENCE CONFIRMED</span>
-          <h2>Assessment Saved to Profile</h2>
-          <p className="submitted-lede">
-            Your career profile has been successfully validated and persisted to Supabase Postgres.
-          </p>
+      <div className="assessment-loading-card" role="status" aria-live="polite">
+        <div className="loading-spinner" />
+        <h3>Computing Your Career Matches…</h3>
+        <p className="loading-subtext">
+          Analyzing your interests, skills, and work style against four focused career paths.
+        </p>
+      </div>
+    )
+  }
 
-          <div className="payload-preview-box">
-            <div className="payload-preview-header">
-              <span className="dm-mono-tag">PERSISTED PROFILE (200 OK)</span>
-              <span className="status-badge">POST /profile Succeeded</span>
-            </div>
-            <pre className="payload-code">
-              {JSON.stringify(submittedPayload, null, 2)}
-            </pre>
-          </div>
-
-          <div className="submitted-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                setSubmittedPayload(null)
-                setCurrentStep(1)
-              }}
-            >
-              Edit Assessment Responses
+  // Match error state
+  if (matchError) {
+    return (
+      <div className="assessment-error-card" role="alert">
+        <span className="error-icon">✕</span>
+        <h3>Unable to Compute Matches</h3>
+        <p className="error-message">{matchError}</p>
+        <div className="error-actions">
+          <button type="button" className="btn-primary" onClick={() => { setMatchError(null); handleSubmit() }}>
+            Retry
+          </button>
+          {onBackToHome && (
+            <button type="button" className="btn-secondary" onClick={onBackToHome}>
+              Back to Overview
             </button>
-            {onBackToHome && (
-              <button type="button" className="btn-primary" onClick={onBackToHome}>
-                Return to Overview
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
+    )
+  }
+
+  // Results view — rendered after successful match
+  if (matchResult) {
+    return (
+      <ResultsPage
+        matchData={matchResult}
+        onBackToHome={onBackToHome}
+        onEditAssessment={() => {
+          setMatchResult(null)
+          setCurrentStep(1)
+        }}
+      />
     )
   }
 

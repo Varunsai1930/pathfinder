@@ -1223,3 +1223,221 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* =========================================================================
+   RESULTS FLOW STYLES
+   ========================================================================= */
+
+.results-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 0 60px;
+}
+
+.results-hero {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.results-headline {
+  margin: 12px 0;
+  font-size: 2.4rem;
+  letter-spacing: -0.04em;
+}
+.results-headline strong {
+  color: #f4bc56;
+}
+.results-lede {
+  color: #9cb8c2;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.results-card {
+  background: #0b2536;
+  border: 1px solid #1a4255;
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.results-card--top {
+  background: linear-gradient(150deg, #12404d, #0b2435);
+  border-color: #4d6f79;
+  box-shadow: 0 16px 40px rgba(2, 16, 25, 0.4);
+}
+
+.results-card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.results-rank-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #061924;
+  border: 1px solid #1a4255;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 1.2rem 'DM Mono', monospace;
+  color: #6e909e;
+}
+.results-card--top .results-rank-badge {
+  background: #f4bc56;
+  border-color: #f4bc56;
+  color: #071827;
+  font-size: 1.4rem;
+}
+
+.results-role-icon {
+  font-size: 1.2rem;
+  margin-right: 8px;
+}
+.results-role-title {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+}
+
+.results-score-block {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.results-fit-number {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  color: #eaf3f7;
+  line-height: 1;
+}
+.results-card--top .results-fit-number {
+  color: #f4bc56;
+}
+.results-fit-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #799ba8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.results-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #173849;
+}
+
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.breakdown-meta {
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+}
+.breakdown-label {
+  font-size: 0.82rem;
+  color: #b2c9d2;
+  font-weight: 500;
+}
+.breakdown-weight {
+  font: 500 0.7rem 'DM Mono', monospace;
+  color: #5c7b89;
+}
+.breakdown-track {
+  flex: 1;
+  height: 6px;
+  background: #04121d;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.breakdown-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 4px;
+}
+.results-card--top .breakdown-fill {
+  background: linear-gradient(90deg, #155f68, #f4bc56);
+}
+.breakdown-value {
+  width: 24px;
+  text-align: right;
+  font: 700 0.85rem 'DM Mono', monospace;
+  color: #d1e3ea;
+}
+
+.results-gaps {
+  margin-top: auto;
+}
+.results-gaps-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #799ba8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+.results-gaps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.results-gaps-list li {
+  font-size: 0.88rem;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+.results-gaps-list li::before {
+  content: '⚠';
+  margin-right: 8px;
+  font-size: 0.9em;
+}
+
+.results-footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid #1a3c4c;
+}
+
+@media (max-width: 760px) {
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+  .results-footer {
+    flex-direction: column-reverse;
+  }
+  .results-footer button {
+    width: 100%;
+  }
+}

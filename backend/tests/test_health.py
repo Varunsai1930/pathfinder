@@ -43,6 +43,6 @@ def test_match_endpoint_rejects_unauthenticated_requests() -> None:
     """Protected endpoints require Authorization header."""
     app.dependency_overrides.clear()
     raw_client = TestClient(app)
-    response = raw_client.post("/api/v1/match", json={})
+    response = raw_client.post("/api/v1/match")
 
     assert response.status_code in (401, 403)

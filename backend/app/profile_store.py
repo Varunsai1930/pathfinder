@@ -37,34 +37,31 @@ def _sanitize_supabase_url(url: str) -> str:
     return cleaned.rstrip("/")
 
 
-def _get_auth_header(settings: Settings, token: str | None = None) -> str:
-    if token:
-        return f"Bearer {token}"
-    if settings.supabase_jwt_secret:
-        try:
-            import jwt
+def _get_postgrest_headers(settings: Settings, token: str | None = None) -> dict[str, str]:
+    """Build the request headers for Supabase PostgREST requests.
 
-            ref = "eharywyxdhcikmxupjtz"
-            if settings.supabase_anon_key:
-                try:
-                    decoded = jwt.decode(settings.supabase_anon_key, options={"verify_signature": False})
-                    ref = decoded.get("ref", ref)
-                except Exception:
-                    pass
-            payload = {
-                "iss": "supabase",
-                "ref": ref,
-                "role": "service_role",
-                "iat": int(datetime.now(timezone.utc).timestamp()),
-                "exp": int(datetime.now(timezone.utc).timestamp()) + 3600 * 24,
-            }
-            service_token = jwt.encode(payload, settings.supabase_jwt_secret, algorithm="HS256")
-            return f"Bearer {service_token}"
-        except Exception:
-            pass
+    Priority order:
+    1. Caller-provided user token (forwarded JWT) -> apikey: anon_key, Authorization: Bearer <token>
+    2. Service role key from env (SUPABASE_SERVICE_ROLE_KEY) -> apikey: service_role_key, Authorization: Bearer <service_role_key>
+    3. Anon key as last resort -> apikey: anon_key, Authorization: Bearer <anon_key>
+    """
+    if token:
+        key = settings.supabase_anon_key or ""
+        return {
+            "apikey": key,
+            "Authorization": f"Bearer {token}",
+        }
+    if settings.supabase_service_role_key:
+        return {
+            "apikey": settings.supabase_service_role_key,
+            "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        }
     if settings.supabase_anon_key:
-        return f"Bearer {settings.supabase_anon_key}"
-    return ""
+        return {
+            "apikey": settings.supabase_anon_key,
+            "Authorization": f"Bearer {settings.supabase_anon_key}",
+        }
+    return {}
 
 
 def upsert_profile(
@@ -78,12 +75,10 @@ def upsert_profile(
     In production, writes directly to Supabase PostgREST with RLS credentials.
     In local test environments, persists into an in-memory test store.
     """
-    if settings.supabase_url and settings.supabase_anon_key:
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
-        auth_header = _get_auth_header(settings, token)
         headers = {
-            "apikey": settings.supabase_anon_key,
-            "Authorization": auth_header,
+            **_get_postgrest_headers(settings, token),
             "Content-Type": "application/json",
             "Prefer": "resolution=merge-duplicates,return=representation",
         }
@@ -146,13 +141,9 @@ def get_profile(
 
     Returns 404 if no profile exists for the user.
     """
-    if settings.supabase_url and settings.supabase_anon_key:
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
-        auth_header = _get_auth_header(settings, token)
-        headers = {
-            "apikey": settings.supabase_anon_key,
-            "Authorization": auth_header,
-        }
+        headers = _get_postgrest_headers(settings, token)
         try:
             with httpx.Client(timeout=10.0) as client:
                 resp = client.get(

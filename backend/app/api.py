@@ -31,10 +31,21 @@ def get_assessment() -> AssessmentCatalog:
 
 @router.post("/match", response_model=MatchResponse, tags=["matching"])
 def match_career_paths(
-    profile: MatchProfile,
-    _user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ) -> MatchResponse:
-    """Rank Pathfinder's four supported roles using transparent deterministic scoring."""
+    """Rank Pathfinder's four supported roles using the user's persisted profile.
+
+    Reads the calling user's saved assessment, runs it through the
+    deterministic matching engine, and returns four ranked score breakdowns.
+    Returns 404 if the user has not submitted a profile yet.
+    """
+    stored = get_profile(user_id=user_id, settings=settings)
+    profile = MatchProfile(
+        interest_responses=stored.interest_responses,
+        skill_confidence=stored.skill_confidence,
+        work_style_responses=stored.work_style_responses,
+    )
     return match_profile(profile)
 
 
