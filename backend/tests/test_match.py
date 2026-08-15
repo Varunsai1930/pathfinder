@@ -52,13 +52,63 @@ def test_match_authenticated_roundtrip(client: TestClient) -> None:
         assert "skill_readiness" in breakdown
         assert "work_style_alignment" in breakdown
 
+        confirmed = set(rec["confirmed_skills"])
+        missing_core = set(rec["missing_core_skills"])
+        missing_supporting = set(rec["missing_supporting_skills"])
+        missing_all = missing_core | missing_supporting
+
+        assert not (confirmed & missing_all), (
+            f"Role {rec['role_id']} has overlap between confirmed and missing: {confirmed & missing_all}"
+        )
+
+
+def test_match_skills_have_zero_overlap_all_roles(client: TestClient) -> None:
+    """Zero overlap between confirmed_skills and missing skills across all 4 roles."""
+    payload = _sample_payload()
+    payload["skill_confidence"] = {
+        "html-css": "practised",
+        "javascript": "project-ready",
+        "react": "aware",
+        "python": "practised",
+        "api-design": "none",
+        "sql": "aware",
+        "git": "project-ready",
+        "linux": "practised",
+        "cloud-basics": "aware",
+        "containers": "none",
+    }
+    client.post("/api/v1/profile", json=payload)
+    response = client.post("/api/v1/match")
+
+    assert response.status_code == 200
+    recs = response.json()["recommendations"]
+    assert len(recs) == 4
+
+    for rec in recs:
+        confirmed = set(rec["confirmed_skills"])
+        missing_core = set(rec["missing_core_skills"])
+        missing_supporting = set(rec["missing_supporting_skills"])
+        missing_all = missing_core | missing_supporting
+
+        # Zero overlap
+        assert not (confirmed & missing_all), (
+            f"Role '{rec['role_id']}' overlap: {confirmed & missing_all}"
+        )
+
+        # Confirmed skills must strictly be practised or project-ready
+        for skill_name in confirmed:
+            assert skill_name not in missing_all
+
+
 def test_match_unauthenticated_rejected() -> None:
     app.dependency_overrides.clear()
     raw_client = TestClient(app)
     response = raw_client.post("/api/v1/match")
     assert response.status_code in (401, 403)
 
+
 def test_match_no_profile_returns_404(client: TestClient) -> None:
     response = client.post("/api/v1/match")
     assert response.status_code == 404
     assert "not found" in response.json().get("detail", "").lower()
+

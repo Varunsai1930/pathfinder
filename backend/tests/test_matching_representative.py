@@ -129,3 +129,24 @@ def test_score_breakdown_reconstructs_total(profile: MatchProfile) -> None:
             f"0.55*{b.interest_alignment} + 0.35*{b.skill_readiness} + 0.10*{b.work_style_alignment} "
             f"= {reconstructed}"
         )
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE],
+    ids=["frontend", "backend", "data-analyst", "cloud-devops"],
+)
+def test_confirmed_and_missing_skills_have_zero_overlap(profile: MatchProfile) -> None:
+    """A skill cannot be both confirmed and missing for the same role."""
+    result = match_profile(profile)
+    for rec in result.recommendations:
+        confirmed = set(rec.confirmed_skills)
+        missing_core = set(rec.missing_core_skills)
+        missing_supporting = set(rec.missing_supporting_skills)
+        missing_all = missing_core | missing_supporting
+
+        overlap = confirmed & missing_all
+        assert not overlap, (
+            f"Role '{rec.role_id}' has overlapping confirmed and missing skills: {overlap}"
+        )
+

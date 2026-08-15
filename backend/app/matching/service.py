@@ -25,6 +25,10 @@ CONFIDENCE_WEIGHTS = {
     SkillConfidence.PRACTISED: 0.7,
     SkillConfidence.PROJECT_READY: 1.0,
 }
+CONFIRMED_CONFIDENCE_LEVELS = {
+    SkillConfidence.PRACTISED,
+    SkillConfidence.PROJECT_READY,
+}
 TIER_WEIGHTS = {
     SkillTier.CORE: 1.0,
     SkillTier.SUPPORTING: 0.5,
@@ -120,17 +124,21 @@ def _score_role(
     )
     skill_score = round(100 * readiness_weight / total_tier_weight, 2)
     confirmed_skills = [
-        skill.name for skill in role.skills if skill_confidence.get(skill.id, SkillConfidence.NONE) != SkillConfidence.NONE
+        skill.name
+        for skill in role.skills
+        if skill_confidence.get(skill.id, SkillConfidence.NONE) in CONFIRMED_CONFIDENCE_LEVELS
     ]
     missing_core_skills = [
         skill.name
         for skill in role.skills
-        if skill.tier == SkillTier.CORE and skill_confidence.get(skill.id, SkillConfidence.NONE) != SkillConfidence.PROJECT_READY
+        if skill.tier == SkillTier.CORE
+        and skill_confidence.get(skill.id, SkillConfidence.NONE) not in CONFIRMED_CONFIDENCE_LEVELS
     ]
     missing_supporting_skills = [
         skill.name
         for skill in role.skills
-        if skill.tier == SkillTier.SUPPORTING and skill_confidence.get(skill.id, SkillConfidence.NONE) != SkillConfidence.PROJECT_READY
+        if skill.tier == SkillTier.SUPPORTING
+        and skill_confidence.get(skill.id, SkillConfidence.NONE) not in CONFIRMED_CONFIDENCE_LEVELS
     ]
     total_score = round(0.55 * interest_score + 0.35 * skill_score + 0.10 * work_style_score, 2)
     return CareerRecommendation(
