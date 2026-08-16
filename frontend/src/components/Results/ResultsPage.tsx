@@ -216,13 +216,22 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
               />
             </div>
 
-            {/* Skill gaps — top 2 missing core skills */}
-            {rec.missing_core_skills.length > 0 && (
+            {/* Skill gaps */}
+            {(rec.missing_core_skills.length > 0 || rec.missing_supporting_skills.length > 0) && (
               <div className="results-gaps">
                 <span className="results-gaps-label">Biggest skill gaps</span>
                 <ul className="results-gaps-list">
                   {rec.missing_core_skills.slice(0, 2).map((skill) => (
-                    <li key={skill}>{skill}</li>
+                    <li key={`core-${skill}`}>
+                      <GapAlertIcon />
+                      {skill}
+                    </li>
+                  ))}
+                  {rec.missing_supporting_skills.slice(0, 2).map((skill) => (
+                    <li key={`supporting-${skill}`}>
+                      <GapAlertIcon />
+                      {skill}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -261,6 +270,24 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
 /* ------------------------------------------------------------------ */
 /*  Breakdown bar sub-component                                        */
 /* ------------------------------------------------------------------ */
+
+function GapAlertIcon() {
+  return (
+    <svg
+      className="results-gap-icon"
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M7.134 2.5a1 1 0 0 1 1.732 0l5.66 9.8A1 1 0 0 1 13.66 13.8H2.34a1 1 0 0 1-.866-1.5l5.66-9.8zM8 5.75a.75.75 0 0 0-.75.75v2.4a.75.75 0 0 0 1.5 0V6.5A.75.75 0 0 0 8 5.75zm0 6.15a.85.85 0 1 0 0-1.7.85.85 0 0 0 0 1.7z"
+      />
+    </svg>
+  )
+}
 
 function BreakdownBar({ label, value, weight }: { label: string; value: number; weight: string }) {
   const rounded = Math.round(value)

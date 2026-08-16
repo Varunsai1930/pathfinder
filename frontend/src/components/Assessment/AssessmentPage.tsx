@@ -516,7 +516,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
       )}
 
       {submitError && (
-        <div className="validation-banner" style={{ background: '#fef2f2', borderColor: '#f87171', color: '#991b1b' }} role="alert">
+        <div className="validation-banner" role="alert">
           <span className="validation-icon">✕</span>
           <span className="validation-text">{submitError}</span>
         </div>
