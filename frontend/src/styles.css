@@ -170,6 +170,150 @@ button:disabled {
   margin-top: 8px;
 }
 
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nav-user-email {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.nav-link-btn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nav-link-btn:hover {
+  color: #f4bc56;
+}
+
+.hero-signed-in {
+  margin-top: 1.5rem;
+  max-width: 420px;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.hero-signed-in p {
+  margin: 0 0 0.65rem;
+  font-weight: 600;
+  color: #d7e7ed;
+}
+
+.btn-ghost {
+  border: 1px solid #64748b;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  color: #cbd5e1;
+  background: transparent;
+  font: 600 0.85rem Manrope, sans-serif;
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  border-color: #94a3b8;
+  color: #f1f5f9;
+}
+
+.login-page {
+  width: min(860px, 100%);
+  min-height: 80vh;
+  margin: 0 auto;
+  padding: 0 4vw 48px;
+}
+
+.login-card {
+  max-width: 620px;
+  margin: 48px auto 0;
+  padding: 36px;
+  border: 1px solid #315866;
+  border-radius: 18px;
+  background: linear-gradient(150deg, #12404d, #0b2435);
+  box-shadow: 0 24px 65px #02101980;
+}
+
+.login-card h1 {
+  margin: 12px 0;
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+}
+
+.login-card > p:not(.eyebrow) {
+  margin: 0;
+  color: #b7cbd3;
+  line-height: 1.65;
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.login-form label {
+  color: #c7dbe2;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.login-form .btn-primary,
+.login-signed-in .btn-primary {
+  min-height: 46px;
+  width: 100%;
+}
+
+.login-signed-in {
+  margin-top: 28px;
+  padding: 18px;
+  border: 1px solid #376779;
+  border-radius: 10px;
+  background: #0a2434;
+}
+
+.login-signed-in p {
+  margin: 0 0 14px;
+  color: #bfd4dc;
+}
+
+.login-card .preview-note {
+  margin-top: 18px;
+}
+
+.login-greeting {
+  margin: 0;
+  color: #d4e4ea;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.auth-switch {
+  margin: 22px 0 0;
+  color: #9cb8c2;
+  font-size: 0.9rem;
+}
+
+.auth-switch-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #f4bc56;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-switch-link:hover {
+  color: #ffd07d;
+  text-decoration: underline;
+}
+
 /* Score Card Preview */
 .score-card {
   padding: 32px;

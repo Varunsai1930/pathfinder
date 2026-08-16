@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AssessmentPage } from './components/Assessment/AssessmentPage'
-import { config } from './lib/config'
+import { LoginPage } from './components/Login/LoginPage'
+import { SignUpPage } from './components/Login/SignUpPage'
 import { supabase } from './lib/supabase'
 
 const roles = [
@@ -10,12 +11,11 @@ const roles = [
   ['Cloud/DevOps Engineer', 'Automate delivery and run reliable infrastructure.'],
 ]
 
+type AppView = 'landing' | 'login' | 'signup' | 'assessment'
+
 function App() {
-  const [currentView, setCurrentView] = useState<'landing' | 'assessment'>('landing')
-  const [email, setEmail] = useState('')
+  const [currentView, setCurrentView] = useState<AppView>('landing')
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
@@ -37,29 +37,10 @@ function App() {
     }
   }, [])
 
-  async function requestSignIn(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!supabase) {
-      setMessage('Sign-in is ready to connect once Supabase environment variables are added.')
-      return
-    }
-
-    setIsSubmitting(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    })
-    setMessage(error ? error.message : 'Check your email for a secure sign-in link.')
-    setIsSubmitting(false)
-  }
-
   async function handleSignOut() {
     if (!supabase) return
     await supabase.auth.signOut()
     setUserEmail(null)
-    setMessage('You have been signed out.')
   }
 
   if (currentView === 'assessment') {
@@ -67,6 +48,28 @@ function App() {
       <main>
         <AssessmentPage onBackToHome={() => setCurrentView('landing')} />
       </main>
+    )
+  }
+
+  if (currentView === 'login') {
+    return (
+      <LoginPage
+        userEmail={userEmail}
+        onBackToHome={() => setCurrentView('landing')}
+        onContinue={() => setCurrentView('assessment')}
+        onGoToSignUp={() => setCurrentView('signup')}
+      />
+    )
+  }
+
+  if (currentView === 'signup') {
+    return (
+      <SignUpPage
+        userEmail={userEmail}
+        onBackToHome={() => setCurrentView('landing')}
+        onContinue={() => setCurrentView('assessment')}
+        onGoToLogin={() => setCurrentView('login')}
+      />
     )
   }
 
@@ -78,32 +81,20 @@ function App() {
         </a>
         <a href="#how-it-works">How it works</a>
         <a href="#paths">Career paths</a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="nav-auth">
           {userEmail ? (
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-              {userEmail}
-            </span>
+            <span className="nav-user-email">{userEmail}</span>
           ) : (
-            <a
-              href="#email"
-              onClick={(e) => {
-                e.preventDefault()
-                const el = document.getElementById('email')
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  el.focus()
-                }
-              }}
-            >
+            <button type="button" className="nav-link-btn" onClick={() => setCurrentView('login')}>
               Log in
-            </a>
+            </button>
           )}
           <button
             type="button"
             className="nav-cta"
-            onClick={() => setCurrentView('assessment')}
+            onClick={() => setCurrentView(userEmail ? 'assessment' : 'signup')}
           >
-            Start Assessment →
+            {userEmail ? 'Start Assessment →' : 'Sign up'}
           </button>
         </div>
       </nav>
@@ -119,50 +110,20 @@ function App() {
             <button
               type="button"
               className="btn-hero-primary"
-              onClick={() => setCurrentView('assessment')}
+              onClick={() => setCurrentView(userEmail ? 'assessment' : 'signup')}
             >
-              Start Free Assessment →
+              {userEmail ? 'Start Free Assessment →' : 'Sign up to Start →'}
             </button>
           </div>
 
           {userEmail ? (
-            <div className="sign-in" style={{ marginTop: '1.5rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-              <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>Signed in as: {userEmail}</p>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                style={{ background: 'transparent', border: '1px solid #64748b', color: '#cbd5e1', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}
-              >
+            <div className="hero-signed-in">
+              <p>Signed in as <strong>{userEmail}</strong></p>
+              <button type="button" className="btn-ghost" onClick={handleSignOut}>
                 Sign out
               </button>
             </div>
-          ) : (
-            <form className="sign-in" onSubmit={requestSignIn}>
-              <label htmlFor="email">Or save progress with your email</label>
-              <div className="form-row">
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  required
-                />
-                <button disabled={isSubmitting}>
-                  {isSubmitting ? 'Sending…' : 'Get started'}
-                </button>
-              </div>
-              {message && (
-                <p className="message" role="status">
-                  {message}
-                </p>
-              )}
-            </form>
-          )}
-
-          {!config.hasSupabaseAuth && (
-            <p className="preview-note">Preview mode: authentication configuration is pending.</p>
-          )}
+          ) : null}
         </div>
 
         <aside className="score-card" aria-label="Example PathFinder score">
