@@ -13,6 +13,8 @@ from app.matching.models import (
 )
 from app.matching.service import match_profile
 from app.profile_store import get_profile, upsert_profile
+from app.roadmap_models import RoadmapResponse
+from app.roadmap_store import get_roadmap, upsert_roadmap
 
 router = APIRouter(prefix="/api/v1")
 
@@ -73,3 +75,23 @@ def fetch_user_profile(
     Returns 404 if the user has not submitted an assessment yet.
     """
     return get_profile(user_id=user_id, settings=settings)
+
+
+@router.post("/roadmaps/{role_id}", response_model=RoadmapResponse, tags=["roadmaps"])
+def create_roadmap(
+    role_id: str,
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> RoadmapResponse:
+    """Create or refresh the user's deterministic fallback roadmap for a catalog role."""
+    return upsert_roadmap(user_id=user_id, role_id=role_id, settings=settings)
+
+
+@router.get("/roadmaps/{role_id}", response_model=RoadmapResponse, tags=["roadmaps"])
+def fetch_roadmap(
+    role_id: str,
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> RoadmapResponse:
+    """Return the caller's persisted roadmap for one catalog role, or a clean 404."""
+    return get_roadmap(user_id=user_id, role_id=role_id, settings=settings)

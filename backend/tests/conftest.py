@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.auth import get_current_user
 from app.main import app
 from app.profile_store import reset_in_memory_store
+from app.roadmap_store import reset_in_memory_roadmap_store
 
 FAKE_USER_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -16,12 +17,14 @@ def _fake_current_user() -> str:
 
 @pytest.fixture(autouse=True)
 def _override_auth():
-    """Replace JWT verification with a deterministic fake and clear profile store for every test."""
+    """Replace JWT verification with a deterministic fake and clear local stores."""
     reset_in_memory_store()
+    reset_in_memory_roadmap_store()
     app.dependency_overrides[get_current_user] = _fake_current_user
     yield
     app.dependency_overrides.pop(get_current_user, None)
     reset_in_memory_store()
+    reset_in_memory_roadmap_store()
 
 
 @pytest.fixture()
