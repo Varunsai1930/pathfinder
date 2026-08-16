@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from uuid import UUID
 
 from app.auth import get_current_user
 from app.catalog.assessment_loader import get_assessment_catalog
@@ -15,6 +16,8 @@ from app.matching.service import match_profile
 from app.profile_store import get_profile, upsert_profile
 from app.roadmap_models import RoadmapResponse
 from app.roadmap_store import get_roadmap, upsert_roadmap
+from app.task_models import TaskCompletionPayload, TaskUpdateResponse
+from app.task_store import update_task_completion
 
 router = APIRouter(prefix="/api/v1")
 
@@ -95,3 +98,19 @@ def fetch_roadmap(
 ) -> RoadmapResponse:
     """Return the caller's persisted roadmap for one catalog role, or a clean 404."""
     return get_roadmap(user_id=user_id, role_id=role_id, settings=settings)
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskUpdateResponse, tags=["tasks"])
+def update_task(
+    task_id: UUID,
+    payload: TaskCompletionPayload,
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> TaskUpdateResponse:
+    """Update the caller's task completion state and return their next action."""
+    return update_task_completion(
+        user_id=user_id,
+        task_id=task_id,
+        completed=payload.completed,
+        settings=settings,
+    )

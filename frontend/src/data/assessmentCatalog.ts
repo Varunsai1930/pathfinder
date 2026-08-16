@@ -32,6 +32,11 @@ export interface RoleDefinition {
   title: string
   summary: string
   skills: RoleSkill[]
+  portfolio_project: {
+    title: string
+    brief: string
+    evidence_of_readiness: string[]
+  }
 }
 
 export interface RolesCatalogData {

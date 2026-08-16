@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -26,6 +27,8 @@ class WeeklyPlanItem(BaseModel):
     practical_task: str
     portfolio_deliverable: str
     resources: list[RoadmapResource]
+    task_id: UUID | None = None
+    completed: bool = False
 
 
 class RoadmapResponse(BaseModel):

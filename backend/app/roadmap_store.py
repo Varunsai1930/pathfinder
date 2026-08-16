@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import logging
 from typing import Any
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 import httpx
@@ -13,6 +14,7 @@ from app.catalog.loader import get_catalog
 from app.config import Settings
 from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
 from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
+from app.task_store import create_roadmap_tasks, task_states_for_roadmap
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +59,23 @@ def _weekly_plan_for(role_id: str) -> list[WeeklyPlanItem]:
     ]
 
 
-def _response_from_row(row: dict[str, Any]) -> RoadmapResponse:
+def _response_from_row(row: dict[str, Any], user_id: str, settings: Settings) -> RoadmapResponse:
+    tasks_by_milestone = task_states_for_roadmap(
+        user_id=user_id,
+        roadmap_id=row["id"],
+        settings=settings,
+    )
+    weekly_plan = [
+        {
+            **item,
+            "task_id": tasks_by_milestone.get(item["milestone_id"], {}).get("id"),
+            "completed": tasks_by_milestone.get(item["milestone_id"], {}).get("completed", False),
+        }
+        for item in row["weekly_plan"]
+    ]
     return RoadmapResponse(
         role_id=row["role_id"],
-        weekly_plan=row["weekly_plan"],
+        weekly_plan=weekly_plan,
         generation_mode=row["generation_mode"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
@@ -74,7 +89,10 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
     stored_row: dict[str, Any] = {
         "user_id": user_id,
         "role_id": role_id,
-        "weekly_plan": [item.model_dump(mode="json") for item in weekly_plan],
+        "weekly_plan": [
+            item.model_dump(mode="json", exclude={"task_id", "completed"})
+            for item in weekly_plan
+        ],
         "generation_mode": "fallback",
         "updated_at": now.isoformat(),
     }
@@ -114,10 +132,17 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
             )
     else:
         previous = _in_memory_roadmaps.get((user_id, role_id))
+        stored_row["id"] = previous["id"] if previous else str(uuid4())
         stored_row["created_at"] = previous["created_at"] if previous else now.isoformat()
 
     _in_memory_roadmaps[(user_id, role_id)] = stored_row
-    return _response_from_row(stored_row)
+    create_roadmap_tasks(
+        user_id=user_id,
+        roadmap_id=stored_row["id"],
+        weekly_plan=weekly_plan,
+        settings=settings,
+    )
+    return _response_from_row(stored_row, user_id=user_id, settings=settings)
 
 
 def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
@@ -137,7 +162,7 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
                 rows = response.json()
                 if not rows:
                     raise _not_found()
-                return _response_from_row(rows[0])
+                return _response_from_row(rows[0], user_id=user_id, settings=settings)
             if response.status_code == 404:
                 raise _not_found()
             logger.error("Supabase roadmap get failed with status %d: %s", response.status_code, response.text)
@@ -155,4 +180,4 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
     stored_row = _in_memory_roadmaps.get((user_id, role_id))
     if stored_row is None:
         raise _not_found()
-    return _response_from_row(stored_row)
+    return _response_from_row(stored_row, user_id=user_id, settings=settings)

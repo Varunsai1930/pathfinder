@@ -32,14 +32,25 @@ def test_roadmap_authenticated_roundtrip(client: TestClient) -> None:
         "frontend-quality",
         "frontend-portfolio",
     ]
+    assert all(item["task_id"] is not None for item in data["weekly_plan"])
+    assert all(item["completed"] is False for item in data["weekly_plan"])
 
     fetched = client.get(f"/api/v1/roadmaps/{ROLE_ID}")
     assert fetched.status_code == 200
     assert fetched.json() == data
 
+    completed_task_id = data["weekly_plan"][0]["task_id"]
+    task_update = client.patch(f"/api/v1/tasks/{completed_task_id}", json={"completed": True})
+    assert task_update.status_code == 200
+
+    fetched_after_update = client.get(f"/api/v1/roadmaps/{ROLE_ID}")
+    assert fetched_after_update.status_code == 200
+    assert fetched_after_update.json()["weekly_plan"][0]["task_id"] == completed_task_id
+    assert fetched_after_update.json()["weekly_plan"][0]["completed"] is True
+
     root_fetched = client.get(f"/roadmaps/{ROLE_ID}")
     assert root_fetched.status_code == 200
-    assert root_fetched.json() == data
+    assert root_fetched.json() == fetched_after_update.json()
 
 
 def test_roadmap_not_found_returns_clean_404(client: TestClient) -> None:

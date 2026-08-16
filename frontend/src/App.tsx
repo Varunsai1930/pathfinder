@@ -79,10 +79,24 @@ function App() {
         <a href="#how-it-works">How it works</a>
         <a href="#paths">Career paths</a>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {userEmail && (
+          {userEmail ? (
             <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
               {userEmail}
             </span>
+          ) : (
+            <a
+              href="#email"
+              onClick={(e) => {
+                e.preventDefault()
+                const el = document.getElementById('email')
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  el.focus()
+                }
+              }}
+            >
+              Log in
+            </a>
           )}
           <button
             type="button"
@@ -96,7 +110,6 @@ function App() {
 
       <section className="hero" id="top">
         <div>
-          <p className="eyebrow">FOR INDIAN TECH STUDENTS</p>
           <h1>Choose a career path with evidence—not guesswork.</h1>
           <p className="lede">
             Pathfinder compares your interests, current skills, and available time with clear entry-level technology paths. You get a transparent fit score and an actionable plan.

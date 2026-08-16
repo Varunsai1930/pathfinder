@@ -12,7 +12,7 @@ interface ScoreBreakdown {
   work_style_alignment: number
 }
 
-interface CareerRecommendation {
+export interface CareerRecommendation {
   rank: number
   role_id: string
   role_title: string
@@ -38,6 +38,7 @@ interface ResultsPageProps {
   matchData?: MatchResponse | null
   onBackToHome?: () => void
   onEditAssessment?: () => void
+  onExplorePath?: (recommendation: CareerRecommendation) => void
 }
 
 /* ------------------------------------------------------------------ */
@@ -55,7 +56,7 @@ const ROLE_ICONS: Record<string, string> = {
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessment }: ResultsPageProps) {
+export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessment, onExplorePath }: ResultsPageProps) {
   const [matchData, setMatchData] = useState<MatchResponse | null>(preloaded ?? null)
   const [isLoading, setIsLoading] = useState(!preloaded)
   const [error, setError] = useState<string | null>(null)
@@ -225,6 +226,16 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
                   ))}
                 </ul>
               </div>
+            )}
+
+            {onExplorePath && (
+              <button
+                type="button"
+                className="results-explore-button"
+                onClick={() => onExplorePath(rec)}
+              >
+                Explore path →
+              </button>
             )}
           </article>
         ))}
