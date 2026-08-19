@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
     supabase_jwt_audience: str = "authenticated"
     openai_api_key: str | None = None
-    openai_model: str | None = None
+    # GPT-5 mini is deliberately pinned as the product default: it supports
+    # structured outputs and is inexpensive enough for per-request guidance.
+    # Operators can still override this with OPENAI_MODEL when necessary.
+    openai_model: str = "gpt-5-mini"
 
     @property
     def cors_origins(self) -> list[str]:

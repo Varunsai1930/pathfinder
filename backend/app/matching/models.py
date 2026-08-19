@@ -83,9 +83,11 @@ class CareerRecommendation(BaseModel):
     confirmed_skills: list[str]
     missing_core_skills: list[str]
     missing_supporting_skills: list[str]
+    fit_explanation: str = ""
 
 
 class MatchResponse(BaseModel):
     normalized_interest_profile: RiasecProfile
     normalized_work_style_profile: WorkStyleProfile
     recommendations: list[CareerRecommendation] = Field(min_length=4, max_length=4)
+    generation_mode: str = "fallback"

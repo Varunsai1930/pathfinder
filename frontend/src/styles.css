@@ -1589,6 +1589,12 @@ button:disabled {
 .results-gaps {
   margin-top: auto;
 }
+.results-fit-explanation {
+  margin: -4px 0 24px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
 .results-gaps-label {
   display: block;
   font-size: 0.8rem;
@@ -1723,6 +1729,91 @@ button:disabled {
   margin: 7px 0 0;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.roadmap-adaptation,
+.ask-results {
+  margin: 20px 0;
+  padding: 20px 22px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--bg-surface);
+}
+.roadmap-adaptation > span,
+.ask-results-answer > span {
+  font: 500 0.7rem 'DM Mono', monospace;
+  letter-spacing: 0.1em;
+  color: var(--accent-primary);
+}
+.roadmap-adaptation p {
+  margin: 7px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.milestone-personalized-focus {
+  margin: 17px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.ask-results {
+  margin-top: 34px;
+}
+.ask-results h2 {
+  margin: 6px 0 8px;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+.ask-results > div > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.ask-results form {
+  margin-top: 18px;
+}
+.ask-results label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.ask-results-input-row {
+  display: flex;
+  gap: 10px;
+}
+.ask-results input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font: inherit;
+}
+.ask-results-error {
+  margin: 12px 0 0;
+  color: var(--text-danger);
+  font-size: 0.88rem;
+}
+.ask-results-answer {
+  margin-top: 16px;
+  padding: 15px;
+  border-radius: 9px;
+  background: var(--bg-muted);
+}
+.ask-results-answer p {
+  margin: 7px 0 8px;
+  color: var(--text-primary);
+  line-height: 1.55;
+}
+.ask-results-answer small {
+  color: var(--text-secondary);
 }
 
 .dashboard-error {
@@ -1928,5 +2019,8 @@ button:disabled {
   .dashboard-task-grid {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+  .ask-results-input-row {
+    flex-direction: column;
   }
 }

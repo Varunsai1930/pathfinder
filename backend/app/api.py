@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
 
 from app.auth import get_current_user
@@ -13,6 +13,12 @@ from app.matching.models import (
     ProfileResponse,
 )
 from app.matching.service import match_profile
+from app.personalization import (
+    AskQuestionPayload,
+    AskQuestionResponse,
+    answer_grounded_question,
+    personalize_match_response,
+)
 from app.profile_store import get_profile, upsert_profile
 from app.roadmap_models import RoadmapResponse
 from app.roadmap_store import get_roadmap, upsert_roadmap
@@ -51,7 +57,8 @@ def match_career_paths(
         skill_confidence=stored.skill_confidence,
         work_style_responses=stored.work_style_responses,
     )
-    return match_profile(profile)
+    deterministic_match = match_profile(profile)
+    return personalize_match_response(deterministic_match, stored.constraints, settings)
 
 
 @router.post("/profile", response_model=ProfileResponse, tags=["profile"])
@@ -98,6 +105,33 @@ def fetch_roadmap(
 ) -> RoadmapResponse:
     """Return the caller's persisted roadmap for one catalog role, or a clean 404."""
     return get_roadmap(user_id=user_id, role_id=role_id, settings=settings)
+
+
+@router.post("/questions", response_model=AskQuestionResponse, tags=["questions"])
+def ask_about_results(
+    payload: AskQuestionPayload,
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> AskQuestionResponse:
+    """Answer a learner question solely from their already-owned Pathfinder data."""
+    stored = get_profile(user_id=user_id, settings=settings)
+    deterministic_match = match_profile(
+        MatchProfile(
+            interest_responses=stored.interest_responses,
+            skill_confidence=stored.skill_confidence,
+            work_style_responses=stored.work_style_responses,
+        )
+    )
+    roadmap = None
+    if payload.role_id:
+        if payload.role_id not in {recommendation.role_id for recommendation in deterministic_match.recommendations}:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="role_id must be one of your computed results.")
+        try:
+            roadmap = get_roadmap(user_id=user_id, role_id=payload.role_id, settings=settings)
+        except HTTPException as exc:
+            if exc.status_code != status.HTTP_404_NOT_FOUND:
+                raise
+    return answer_grounded_question(payload, deterministic_match, roadmap, settings)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskUpdateResponse, tags=["tasks"])

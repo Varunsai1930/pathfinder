@@ -29,11 +29,13 @@ class WeeklyPlanItem(BaseModel):
     resources: list[RoadmapResource]
     task_id: UUID | None = None
     completed: bool = False
+    personalized_focus: str = ""
 
 
 class RoadmapResponse(BaseModel):
     role_id: str
     weekly_plan: list[WeeklyPlanItem] = Field(min_length=5, max_length=5)
     generation_mode: Literal["fallback", "llm"]
+    adaptation_note: str = ""
     created_at: datetime
     updated_at: datetime

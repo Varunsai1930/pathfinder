@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
+import { AskAboutResults } from '../Questions/AskAboutResults'
 
 interface RoadmapResource {
   title: string
@@ -20,6 +21,7 @@ interface RoadmapWeek {
   resources: RoadmapResource[]
   task_id: string | null
   completed: boolean
+  personalized_focus: string
 }
 
 interface RoadmapResponse {
@@ -28,6 +30,7 @@ interface RoadmapResponse {
   generation_mode: 'fallback' | 'llm'
   created_at: string
   updated_at: string
+  adaptation_note: string
 }
 
 interface NextAction {
@@ -251,6 +254,13 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
         <p>{nextAction?.message ?? 'Choose a milestone to continue.'}</p>
       </section>
 
+      {roadmap.adaptation_note && (
+        <section className="roadmap-adaptation" aria-label="Personalized roadmap pacing">
+          <span>PERSONALIZED PACING</span>
+          <p>{roadmap.adaptation_note}</p>
+        </section>
+      )}
+
       {patchError && (
         <div className="dashboard-error" role="alert">
           <span>✕</span>
@@ -302,6 +312,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
                 </div>
               </div>
 
+              {week.personalized_focus && <p className="milestone-personalized-focus">{week.personalized_focus}</p>}
+
               <div className="dashboard-milestone-footer">
                 <span className="dashboard-skills">Skills: {week.skills.join(', ')}</span>
                 <span>{week.estimated_effort_hours} estimated hours</span>
@@ -323,6 +335,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
           </article>
         ))}
       </section>
+
+      <AskAboutResults roleId={roleId} />
     </div>
   )
 }

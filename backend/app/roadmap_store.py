@@ -13,6 +13,8 @@ import httpx
 from app.catalog.loader import get_catalog
 from app.config import Settings
 from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
+from app.profile_store import get_profile
+from app.personalization import personalize_roadmap_response
 from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
 from app.task_store import create_roadmap_tasks, task_states_for_roadmap
 
@@ -82,6 +84,15 @@ def _response_from_row(row: dict[str, Any], user_id: str, settings: Settings) ->
     )
 
 
+def _personalize_for_user(response: RoadmapResponse, user_id: str, settings: Settings) -> RoadmapResponse:
+    """Personalization is optional; a missing profile remains a safe fallback."""
+    try:
+        profile = get_profile(user_id=user_id, settings=settings)
+    except HTTPException:
+        profile = None
+    return personalize_roadmap_response(response, profile.constraints if profile else None, settings)
+
+
 def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
     """Generate and persist a deterministic fallback roadmap for the caller."""
     weekly_plan = _weekly_plan_for(role_id)
@@ -142,7 +153,9 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
         weekly_plan=weekly_plan,
         settings=settings,
     )
-    return _response_from_row(stored_row, user_id=user_id, settings=settings)
+    return _personalize_for_user(
+        _response_from_row(stored_row, user_id=user_id, settings=settings), user_id=user_id, settings=settings
+    )
 
 
 def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
@@ -162,7 +175,9 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
                 rows = response.json()
                 if not rows:
                     raise _not_found()
-                return _response_from_row(rows[0], user_id=user_id, settings=settings)
+                return _personalize_for_user(
+                    _response_from_row(rows[0], user_id=user_id, settings=settings), user_id=user_id, settings=settings
+                )
             if response.status_code == 404:
                 raise _not_found()
             logger.error("Supabase roadmap get failed with status %d: %s", response.status_code, response.text)
@@ -180,4 +195,6 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
     stored_row = _in_memory_roadmaps.get((user_id, role_id))
     if stored_row is None:
         raise _not_found()
-    return _response_from_row(stored_row, user_id=user_id, settings=settings)
+    return _personalize_for_user(
+        _response_from_row(stored_row, user_id=user_id, settings=settings), user_id=user_id, settings=settings
+    )

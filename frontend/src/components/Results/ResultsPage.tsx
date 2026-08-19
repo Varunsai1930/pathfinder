@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
+import { AskAboutResults } from '../Questions/AskAboutResults'
 
 /* ------------------------------------------------------------------ */
 /*  Types matching backend MatchResponse                               */
@@ -21,12 +22,14 @@ export interface CareerRecommendation {
   confirmed_skills: string[]
   missing_core_skills: string[]
   missing_supporting_skills: string[]
+  fit_explanation: string
 }
 
 export interface MatchResponse {
   normalized_interest_profile: Record<string, number>
   normalized_work_style_profile: Record<string, number>
   recommendations: CareerRecommendation[]
+  generation_mode: 'fallback' | 'llm'
 }
 
 /* ------------------------------------------------------------------ */
@@ -216,6 +219,10 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
               />
             </div>
 
+            {rec.fit_explanation && (
+              <p className="results-fit-explanation">{rec.fit_explanation}</p>
+            )}
+
             {/* Skill gaps */}
             {(rec.missing_core_skills.length > 0 || rec.missing_supporting_skills.length > 0) && (
               <div className="results-gaps">
@@ -249,6 +256,8 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
           </article>
         ))}
       </div>
+
+      <AskAboutResults />
 
       {/* Actions */}
       <footer className="results-footer">
