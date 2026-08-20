@@ -37,6 +37,7 @@ In the Supabase SQL editor, run the migrations in order:
 1. `supabase/migrations/20260813000000_initial_schema.sql`
 2. `supabase/migrations/20260816000000_roadmaps.sql`
 3. `supabase/migrations/20260816010000_tasks.sql`
+4. `supabase/migrations/20260820000000_llm_personalization.sql`
 
 Enable email OTP under Authentication → Providers → Email.
 
@@ -121,15 +122,15 @@ Never commit populated `.env` files. Copy the templates:
 
 ## Grounded AI guidance
 
-Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENAI_API_KEY` is configured, the API uses the pinned `gpt-5-mini` model for three constrained enhancements:
+Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses OpenRouter's `openrouter/free` auto-router for constrained enhancements:
 
 - two-to-three sentence fit explanations;
 - a personalized focus and pacing note for the five existing milestones; and
 - a small learner Q&A response based only on that learner's computed match and optional roadmap.
 
-Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs. An unavailable key, timeout, malformed response, or unknown reference returns deterministic fallback guidance instead. `OPENAI_MODEL` may override the default for controlled testing, but should remain `gpt-5-mini` for normal deployment.
+Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs. An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. The auto-router is intentionally not replaced with a named free-tier model, because OpenRouter's available free models rotate.
 
-After adding `OPENAI_API_KEY` and deploying the backend, verify that the personalization path is live with an authenticated request; the response must contain `"generation_mode": "llm"`:
+After adding `OPENROUTER_API_KEY` and deploying the backend, verify that the personalization path is live with an authenticated request; the response must contain `"generation_mode": "llm"`:
 
 ```bash
 curl -X POST "$API_URL/api/v1/match" \

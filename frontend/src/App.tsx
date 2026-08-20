@@ -1,20 +1,43 @@
 import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AssessmentPage } from './components/Assessment/AssessmentPage'
+import { DashboardRoute } from './components/Dashboard/DashboardRoute'
+import { LandingPage } from './components/Landing/LandingPage'
 import { LoginPage } from './components/Login/LoginPage'
 import { SignUpPage } from './components/Login/SignUpPage'
+import { QuestionsPage } from './components/Questions/QuestionsPage'
+import { ResultsPage, type MatchResponse } from './components/Results/ResultsPage'
 import { supabase } from './lib/supabase'
 
-const roles = [
-  ['Frontend Developer', 'Build accessible interfaces and browser experiences.'],
-  ['Backend Developer', 'Design the systems and APIs behind products.'],
-  ['Data Analyst', 'Turn data into insights and confident decisions.'],
-  ['Cloud/DevOps Engineer', 'Automate delivery and run reliable infrastructure.'],
-]
+interface ResultsLocationState {
+  matchData?: MatchResponse
+}
 
-type AppView = 'landing' | 'login' | 'signup' | 'assessment'
+function ResultsRoute() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const state = (location.state ?? {}) as ResultsLocationState
+
+  return (
+    <ResultsPage
+      matchData={state.matchData ?? null}
+      onBackToHome={() => navigate('/')}
+      onEditAssessment={() => navigate('/assessment')}
+      onExplorePath={(recommendation) => {
+        navigate(`/dashboard/${recommendation.role_id}`, {
+          state: {
+            roleTitle: recommendation.role_title,
+            skillReadiness: recommendation.score_breakdown.skill_readiness,
+          },
+        })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }}
+    />
+  )
+}
 
 function App() {
-  const [currentView, setCurrentView] = useState<AppView>('landing')
+  const navigate = useNavigate()
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
@@ -41,149 +64,82 @@ function App() {
     if (!supabase) return
     await supabase.auth.signOut()
     setUserEmail(null)
-  }
-
-  if (currentView === 'assessment') {
-    return (
-      <main>
-        <AssessmentPage onBackToHome={() => setCurrentView('landing')} />
-      </main>
-    )
-  }
-
-  if (currentView === 'login') {
-    return (
-      <LoginPage
-        userEmail={userEmail}
-        onBackToHome={() => setCurrentView('landing')}
-        onContinue={() => setCurrentView('assessment')}
-        onGoToSignUp={() => setCurrentView('signup')}
-      />
-    )
-  }
-
-  if (currentView === 'signup') {
-    return (
-      <SignUpPage
-        userEmail={userEmail}
-        onBackToHome={() => setCurrentView('landing')}
-        onContinue={() => setCurrentView('assessment')}
-        onGoToLogin={() => setCurrentView('login')}
-      />
-    )
+    navigate('/')
   }
 
   return (
-    <main>
-      <nav className="nav" aria-label="Primary navigation">
-        <a className="brand" href="#top">
-          Pathfinder<span>•</span>
-        </a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#paths">Career paths</a>
-        <div className="nav-auth">
-          {userEmail ? (
-            <span className="nav-user-email">{userEmail}</span>
-          ) : (
-            <button type="button" className="nav-link-btn" onClick={() => setCurrentView('login')}>
-              Log in
-            </button>
-          )}
-          <button
-            type="button"
-            className="nav-cta"
-            onClick={() => setCurrentView(userEmail ? 'assessment' : 'signup')}
-          >
-            {userEmail ? 'Start Assessment →' : 'Sign up'}
-          </button>
-        </div>
-      </nav>
-
-      <section className="hero" id="top">
-        <div>
-          <h1>Choose a career path with evidence—not guesswork.</h1>
-          <p className="lede">
-            Pathfinder compares your interests, current skills, and available time with clear entry-level technology paths. You get a transparent fit score and an actionable plan.
-          </p>
-
-          <div className="hero-cta-group">
-            <button
-              type="button"
-              className="btn-hero-primary"
-              onClick={() => setCurrentView(userEmail ? 'assessment' : 'signup')}
-            >
-              {userEmail ? 'Start Free Assessment →' : 'Sign up to Start →'}
-            </button>
-          </div>
-
-          {userEmail ? (
-            <div className="hero-signed-in">
-              <p>Signed in as <strong>{userEmail}</strong></p>
-              <button type="button" className="btn-ghost" onClick={handleSignOut}>
-                Sign out
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        <aside className="score-card" aria-label="Example PathFinder score">
-          <p>YOUR TOP PATH</p>
-          <h2>Data Analyst</h2>
-          <strong>
-            82 <small>fit score</small>
-          </strong>
-          <ul>
-            <li>
-              <span>Interest alignment</span>
-              <b>90</b>
-            </li>
-            <li>
-              <span>Current skill readiness</span>
-              <b>71</b>
-            </li>
-            <li>
-              <span>Work-style alignment</span>
-              <b>84</b>
-            </li>
-          </ul>
-          <footer>Understand the why, then take the next step.</footer>
-        </aside>
-      </section>
-
-      <section className="steps" id="how-it-works">
-        <p className="eyebrow">HOW IT WORKS</p>
-        <div className="step-grid">
-          <article>
-            <b>01</b>
-            <h2>Explore your profile</h2>
-            <p>Share your interests, skills, work preferences, and time available each week.</p>
-          </article>
-          <article>
-            <b>02</b>
-            <h2>Compare career fits</h2>
-            <p>See how four focused tech careers align with your profile—and where the gaps are.</p>
-          </article>
-          <article>
-            <b>03</b>
-            <h2>Follow a real plan</h2>
-            <p>Turn one selected path into milestones, weekly tasks, and a project that proves your progress.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="paths" id="paths">
-        <p className="eyebrow">FOUR FOCUSED PATHS</p>
-        <h2>Start broad enough to explore, focused enough to act.</h2>
-        <div className="role-grid">
-          {roles.map(([title, description]) => (
-            <article key={title}>
-              <h3>{title}</h3>
-              <p>{description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            userEmail={userEmail}
+            onSignIn={() => navigate('/login')}
+            onStart={() => navigate(userEmail ? '/assessment' : '/signup')}
+            onSignOut={handleSignOut}
+            onAskQuestions={() => navigate('/questions')}
+          />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            userEmail={userEmail}
+            onBackToHome={() => navigate('/')}
+            onContinue={() => navigate('/assessment')}
+            onGoToSignUp={() => navigate('/signup')}
+          />
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <SignUpPage
+            userEmail={userEmail}
+            onBackToHome={() => navigate('/')}
+            onContinue={() => navigate('/assessment')}
+            onGoToLogin={() => navigate('/login')}
+          />
+        }
+      />
+      <Route
+        path="/assessment"
+        element={
+          <main>
+            <AssessmentPage onBackToHome={() => navigate('/')} />
+          </main>
+        }
+      />
+      <Route
+        path="/questions"
+        element={
+          <QuestionsPage
+            userEmail={userEmail}
+            onBackToHome={() => navigate('/')}
+            onSignIn={() => navigate('/login')}
+            onSignUp={() => navigate('/signup')}
+          />
+        }
+      />
+      <Route
+        path="/results"
+        element={
+          <main>
+            <ResultsRoute />
+          </main>
+        }
+      />
+      <Route
+        path="/dashboard/:roleId"
+        element={
+          <main>
+            <DashboardRoute />
+          </main>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 

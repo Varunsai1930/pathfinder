@@ -5,19 +5,33 @@ frontend/.env.local
 frontend/.env
 frontend/.vercel/
 
+# Root leftover from local runtimes — never ship this
+/node_modules
+
 # Python
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
 backend/.env
 backend/.vercel/
-**/*.pyc
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
 
 # Datasets and submission scratch
 *.csv
 *.png
+*.zip
+
+# Personal notes that are not part of the product
+ML_Course_Plan.txt
+Notion_ML_Template.md
+changes.txt
 
 # OS/editor
 .DS_Store
 .vscode/
 .vercel/
+.vercel
+.env*

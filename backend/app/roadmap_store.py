@@ -12,6 +12,8 @@ import httpx
 
 from app.catalog.loader import get_catalog
 from app.config import Settings
+from app.matching.models import MatchProfile
+from app.matching.service import match_profile
 from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
 from app.profile_store import get_profile
 from app.personalization import personalize_roadmap_response
@@ -79,32 +81,110 @@ def _response_from_row(row: dict[str, Any], user_id: str, settings: Settings) ->
         role_id=row["role_id"],
         weekly_plan=weekly_plan,
         generation_mode=row["generation_mode"],
+        fit_explanation=row.get("fit_explanation", ""),
+        adaptation_note=row.get("adaptation_note", ""),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
 
 
-def _personalize_for_user(response: RoadmapResponse, user_id: str, settings: Settings) -> RoadmapResponse:
-    """Personalization is optional; a missing profile remains a safe fallback."""
+def _personalized_or_fallback_roadmap(
+    base_roadmap: RoadmapResponse, user_id: str, settings: Settings
+) -> RoadmapResponse:
+    """Build a validated display layer without ever changing deterministic data."""
     try:
         profile = get_profile(user_id=user_id, settings=settings)
-    except HTTPException:
+        match = match_profile(
+            MatchProfile(
+                interest_responses=profile.interest_responses,
+                skill_confidence=profile.skill_confidence,
+                work_style_responses=profile.work_style_responses,
+            )
+        )
+        recommendation = next(
+            (item for item in match.recommendations if item.role_id == base_roadmap.role_id), None
+        )
+    except Exception as exc:  # Profile/matching failures must not stop roadmap creation.
+        logger.info("Roadmap LLM context unavailable; using deterministic fallback: %s", exc)
         profile = None
-    return personalize_roadmap_response(response, profile.constraints if profile else None, settings)
+        recommendation = None
+    return personalize_roadmap_response(
+        base_roadmap,
+        recommendation=recommendation,
+        constraints=profile.constraints if profile else None,
+        settings=settings,
+    )
+
+
+def _fresh_display_layer(
+    response: RoadmapResponse, user_id: str, settings: Settings
+) -> RoadmapResponse:
+    """Re-personalize once progress exists so pacing reflects real completion state.
+
+    The stored layer is generated at creation time, when nothing is completed;
+    returning it verbatim would show an empty adaptation_note next to finished
+    milestones. Fresh roadmaps keep the stored layer without another LLM call.
+    """
+    if not any(item.completed for item in response.weekly_plan):
+        return response
+    return _personalized_or_fallback_roadmap(response, user_id=user_id, settings=settings)
 
 
 def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
-    """Generate and persist a deterministic fallback roadmap for the caller."""
+    """Persist a deterministic roadmap with an optional validated LLM display layer."""
     weekly_plan = _weekly_plan_for(role_id)
     now = datetime.now(timezone.utc)
+
+    # Check for existing tasks so that re-personalizing a roadmap with progress
+    # immediately sends the real completion state to the LLM.
+    existing_tasks: dict[str, dict[str, Any]] = {}
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
+        base_url = _sanitize_supabase_url(settings.supabase_url)
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(
+                    f"{base_url}/rest/v1/roadmaps?user_id=eq.{user_id}&role_id=eq.{role_id}&select=id",
+                    headers=_get_postgrest_headers(settings),
+                )
+                if resp.status_code == 200 and resp.json():
+                    existing_roadmap_id = resp.json()[0]["id"]
+                    existing_tasks = task_states_for_roadmap(user_id=user_id, roadmap_id=existing_roadmap_id, settings=settings)
+        except Exception:
+            existing_tasks = {}
+    else:
+        existing_stored = _in_memory_roadmaps.get((user_id, role_id))
+        if existing_stored:
+            existing_tasks = task_states_for_roadmap(user_id=user_id, roadmap_id=existing_stored["id"], settings=settings)
+
+    weekly_plan_with_state = [
+        item.model_copy(update={
+            "task_id": existing_tasks.get(item.milestone_id, {}).get("id"),
+            "completed": existing_tasks.get(item.milestone_id, {}).get("completed", False),
+        })
+        for item in weekly_plan
+    ]
+
+    personalized = _personalized_or_fallback_roadmap(
+        RoadmapResponse(
+            role_id=role_id,
+            weekly_plan=weekly_plan_with_state,
+            generation_mode="fallback",
+            created_at=now,
+            updated_at=now,
+        ),
+        user_id=user_id,
+        settings=settings,
+    )
     stored_row: dict[str, Any] = {
         "user_id": user_id,
         "role_id": role_id,
         "weekly_plan": [
             item.model_dump(mode="json", exclude={"task_id", "completed"})
-            for item in weekly_plan
+            for item in personalized.weekly_plan
         ],
-        "generation_mode": "fallback",
+        "generation_mode": personalized.generation_mode,
+        "fit_explanation": personalized.fit_explanation,
+        "adaptation_note": personalized.adaptation_note,
         "updated_at": now.isoformat(),
     }
 
@@ -145,16 +225,19 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
         previous = _in_memory_roadmaps.get((user_id, role_id))
         stored_row["id"] = previous["id"] if previous else str(uuid4())
         stored_row["created_at"] = previous["created_at"] if previous else now.isoformat()
+        # Local persistence only; Supabase writes must not mirror into memory.
+        _in_memory_roadmaps[(user_id, role_id)] = stored_row
 
-    _in_memory_roadmaps[(user_id, role_id)] = stored_row
     create_roadmap_tasks(
         user_id=user_id,
         roadmap_id=stored_row["id"],
         weekly_plan=weekly_plan,
         settings=settings,
     )
-    return _personalize_for_user(
-        _response_from_row(stored_row, user_id=user_id, settings=settings), user_id=user_id, settings=settings
+    return _fresh_display_layer(
+        _response_from_row(stored_row, user_id=user_id, settings=settings),
+        user_id=user_id,
+        settings=settings,
     )
 
 
@@ -175,8 +258,10 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
                 rows = response.json()
                 if not rows:
                     raise _not_found()
-                return _personalize_for_user(
-                    _response_from_row(rows[0], user_id=user_id, settings=settings), user_id=user_id, settings=settings
+                return _fresh_display_layer(
+                    _response_from_row(rows[0], user_id=user_id, settings=settings),
+                    user_id=user_id,
+                    settings=settings,
                 )
             if response.status_code == 404:
                 raise _not_found()
@@ -195,6 +280,8 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
     stored_row = _in_memory_roadmaps.get((user_id, role_id))
     if stored_row is None:
         raise _not_found()
-    return _personalize_for_user(
-        _response_from_row(stored_row, user_id=user_id, settings=settings), user_id=user_id, settings=settings
+    return _fresh_display_layer(
+        _response_from_row(stored_row, user_id=user_id, settings=settings),
+        user_id=user_id,
+        settings=settings,
     )

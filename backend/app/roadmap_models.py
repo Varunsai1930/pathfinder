@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class RoadmapResource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: str
     url: HttpUrl
     provider: str
@@ -17,6 +18,8 @@ class RoadmapResource(BaseModel):
 
 class WeeklyPlanItem(BaseModel):
     """One catalog milestone scheduled in the deterministic fallback plan."""
+
+    model_config = ConfigDict(extra="forbid")
 
     week: int = Field(ge=1, le=5)
     milestone_id: str
@@ -36,6 +39,7 @@ class RoadmapResponse(BaseModel):
     role_id: str
     weekly_plan: list[WeeklyPlanItem] = Field(min_length=5, max_length=5)
     generation_mode: Literal["fallback", "llm"]
+    fit_explanation: str = ""
     adaptation_note: str = ""
     created_at: datetime
     updated_at: datetime

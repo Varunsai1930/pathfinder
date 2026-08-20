@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   fetchCatalogData,
   type AppCatalogBundle,
@@ -13,8 +14,7 @@ import type {
   SkillConfidence,
   WorkStyleResponses,
 } from '../../types/assessment'
-import { ResultsPage, type MatchResponse } from '../Results/ResultsPage'
-import { DashboardPage } from '../Dashboard/DashboardPage'
+import type { MatchResponse } from '../Results/ResultsPage'
 import { ProgressBar } from './ProgressBar'
 import { SectionConstraints } from './SectionConstraints'
 import { SectionInterests } from './SectionInterests'
@@ -44,6 +44,7 @@ const INITIAL_STATE: AssessmentState = {
 }
 
 export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
+  const navigate = useNavigate()
   const [catalogBundle, setCatalogBundle] = useState<AppCatalogBundle | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -55,19 +56,8 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [matchResult, setMatchResult] = useState<MatchResponse | null>(null)
   const [matchLoading, setMatchLoading] = useState(false)
   const [matchError, setMatchError] = useState<string | null>(null)
-  const [selectedRole, setSelectedRole] = useState<{
-    id: string
-    title: string
-    skillReadiness: number
-    portfolioProject?: {
-      title: string
-      brief: string
-      evidenceOfReadiness: string[]
-    }
-  } | null>(null)
 
   const loadData = async () => {
     try {
@@ -352,8 +342,8 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
       }
 
       const matchData: MatchResponse = await matchRes.json()
-      setMatchResult(matchData)
       setMatchLoading(false)
+      navigate('/results', { state: { matchData } })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown network error while saving profile.'
       setSubmitError(message)
@@ -446,46 +436,6 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
           )}
         </div>
       </div>
-    )
-  }
-
-  // Results view — rendered after successful match
-  if (selectedRole) {
-    return (
-      <DashboardPage
-        roleId={selectedRole.id}
-        roleTitle={selectedRole.title}
-        skillReadiness={selectedRole.skillReadiness}
-        portfolioProject={selectedRole.portfolioProject}
-        onBackToResults={() => setSelectedRole(null)}
-      />
-    )
-  }
-
-  if (matchResult) {
-    return (
-      <ResultsPage
-        matchData={matchResult}
-        onBackToHome={onBackToHome}
-        onEditAssessment={() => {
-          setMatchResult(null)
-          setCurrentStep(1)
-        }}
-        onExplorePath={(recommendation) => {
-          const role = catalogBundle.roles.roles.find((item) => item.id === recommendation.role_id)
-          setSelectedRole({
-            id: recommendation.role_id,
-            title: recommendation.role_title,
-            skillReadiness: recommendation.score_breakdown.skill_readiness,
-            portfolioProject: role ? {
-              title: role.portfolio_project.title,
-              brief: role.portfolio_project.brief,
-              evidenceOfReadiness: role.portfolio_project.evidence_of_readiness,
-            } : undefined,
-          })
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-        }}
-      />
     )
   }
 

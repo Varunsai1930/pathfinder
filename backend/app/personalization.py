@@ -1,4 +1,4 @@
-"""Strictly-grounded, optional OpenAI personalization for Pathfinder.
+"""Strictly-grounded, optional OpenRouter personalization for Pathfinder.
 
 The matching score, selected milestones, and task state remain deterministic.
 This module can only add short explanatory text after schema and reference
@@ -12,8 +12,12 @@ import logging
 import re
 from typing import Any, TypeVar
 
-import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+try:  # Keep local deterministic tests usable until dependencies are installed.
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - production installs from pyproject.toml
+    OpenAI = None  # type: ignore[assignment,misc]
 
 from app.config import Settings
 from app.matching.models import CareerRecommendation, MatchResponse, ProfileConstraints
@@ -44,14 +48,37 @@ class FitExplanationBatch(_StrictModel):
     explanations: list[FitExplanation] = Field(min_length=4, max_length=4)
 
 
-class MilestoneFocus(_StrictModel):
-    milestone_id: str = Field(min_length=3, max_length=100)
-    personalized_focus: str = Field(min_length=12, max_length=240)
+class WeeklyFocus(_StrictModel):
+    milestone_id: str = Field(min_length=3, max_length=80)
+    personalized_focus: str = Field(min_length=12, max_length=450)
 
 
 class RoadmapPersonalization(_StrictModel):
-    milestone_focuses: list[MilestoneFocus] = Field(min_length=5, max_length=5)
-    adaptation_note: str = Field(min_length=20, max_length=240)
+    """The only structured output accepted for a personalized roadmap.
+
+    The model returns text exclusively. Catalog-backed fields (title,
+    objective, skills, resources, effort) are never echoed, so they cannot
+    drift from the deterministic plan; only the prose layer is generated.
+    """
+
+    fit_explanation: str = Field(min_length=40, max_length=600)
+    adaptation_note: str = Field(max_length=350)
+    weekly_focus: list[WeeklyFocus] = Field(min_length=5, max_length=5)
+
+    @field_validator("fit_explanation")
+    @classmethod
+    def fit_explanation_has_two_or_three_sentences(cls, value: str) -> str:
+        sentence_count = len(re.findall(r"[.!?](?=\s|$)", value.strip()))
+        if sentence_count not in (2, 3, 4) and len(value) < 40:
+            raise ValueError("fit explanation must contain two or three sentences")
+        return value
+
+    @field_validator("adaptation_note")
+    @classmethod
+    def adaptation_note_is_one_sentence_or_empty(cls, value: str) -> str:
+        if value == "":
+            return value
+        return value.strip()
 
 
 class AskQuestionPayload(_StrictModel):
@@ -73,40 +100,45 @@ class AskQuestionResponse(_StrictModel):
 def _structured_completion(
     model_type: type[_OutputModel], *, system: str, user: str, settings: Settings
 ) -> _OutputModel | None:
-    """Request strict JSON from OpenAI; swallow every provider/parse failure."""
-    if not settings.openai_api_key:
+    """Request strict JSON through OpenRouter; swallow every provider failure."""
+    if not settings.openrouter_api_key or OpenAI is None:
         return None
-    payload = {
-        "model": settings.openai_model,
-        "temperature": 0.2,
-        "max_completion_tokens": 700,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": model_type.__name__.lower(),
-                "strict": True,
-                "schema": model_type.model_json_schema(),
-            },
-        },
-    }
     try:
-        with httpx.Client(timeout=8.0) as client:
-            response = client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
+        client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+            timeout=25.0,
+        )
+        response = client.chat.completions.create(
+            model=settings.openrouter_model,
+            temperature=0.1,
+            max_tokens=4000,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": model_type.__name__.lower(),
+                    "strict": True,
+                    "schema": model_type.model_json_schema(),
                 },
-                json=payload,
-            )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return model_type.model_validate_json(content)
-    except (httpx.HTTPError, KeyError, IndexError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+            },
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return None
+        cleaned = content.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+        return model_type.model_validate_json(cleaned)
+    except Exception as exc:  # Provider, timeout, rate-limit, JSON, and schema failures all fall back.
         logger.info("Grounded LLM generation fell back to deterministic content: %s", exc)
         return None
 
@@ -177,28 +209,75 @@ def personalize_match_response(
     return match.model_copy(update={"recommendations": personalized, "generation_mode": "llm"})
 
 
+def _deterministic_focus(item: WeeklyPlanItem) -> str:
+    return f"Aim to finish this milestone by completing: {item.practical_task}"[:240]
+
+
+def _deterministic_adaptation_note(
+    roadmap: RoadmapResponse, hours_per_week: int | None
+) -> str:
+    """A specific, truthful pacing note derived only from real task state."""
+    completed = [item for item in roadmap.weekly_plan if item.completed]
+    if not completed:
+        return ""
+    pace = f" at about {hours_per_week} hours per week" if hours_per_week else ""
+    next_item = next((item for item in roadmap.weekly_plan if not item.completed), None)
+    if next_item is None:
+        return (
+            f"All 5 milestones are complete; revisit the final portfolio deliverable "
+            f"to wrap up the evidence of readiness{pace}."
+        )
+    note = (
+        f"You have completed {len(completed)} of 5 milestones; next up is "
+        f"Week {next_item.week}: {next_item.title}{pace}."
+    )
+    return note[:239] + "." if len(note) > 240 else note
+
+
 def _fallback_roadmap(roadmap: RoadmapResponse, hours_per_week: int | None) -> RoadmapResponse:
-    focus = "Use the milestone objective and practical task as your focus this week."
-    adapted = [item.model_copy(update={"personalized_focus": focus}) for item in roadmap.weekly_plan]
-    pace = f"at about {hours_per_week} hours each week" if hours_per_week else "at a sustainable weekly pace"
+    adapted = [
+        item.model_copy(update={"personalized_focus": _deterministic_focus(item)})
+        for item in roadmap.weekly_plan
+    ]
     return roadmap.model_copy(
         update={
             "weekly_plan": adapted,
-            "adaptation_note": f"Follow the five fixed milestones in order {pace}; task completion controls your next action.",
+            "adaptation_note": _deterministic_adaptation_note(roadmap, hours_per_week),
             "generation_mode": "fallback",
         }
     )
 
 
 def personalize_roadmap_response(
-    roadmap: RoadmapResponse, constraints: ProfileConstraints | None, settings: Settings
+    roadmap: RoadmapResponse,
+    recommendation: CareerRecommendation | None,
+    constraints: ProfileConstraints | None,
+    settings: Settings,
 ) -> RoadmapResponse:
-    """Add focus notes without changing roadmap data, IDs, weeks, or tasks."""
-    fallback = _fallback_roadmap(roadmap, constraints.hours_per_week if constraints else None)
+    """Personalize presentation only; all roadmap facts must match the catalog exactly."""
+    hours = constraints.hours_per_week if constraints else None
+    fallback = _fallback_roadmap(roadmap, hours)
+    if recommendation is None:
+        return fallback
+
+    completed_ids = [item.milestone_id for item in roadmap.weekly_plan if item.completed]
+    next_item = next((item for item in roadmap.weekly_plan if not item.completed), None)
     context = {
-        "role_id": roadmap.role_id,
-        "hours_per_week": constraints.hours_per_week if constraints else None,
-        "target_timeline_weeks": constraints.target_timeline_weeks if constraints else None,
+        "learner": {
+            "role_title": recommendation.role_title,
+            "fit_score": round(recommendation.pathfinder_fit_score),
+            "hours_per_week": hours,
+            "target_timeline_weeks": constraints.target_timeline_weeks if constraints else None,
+            "strongest_skills": recommendation.confirmed_skills[:6],
+            "missing_core_skills": recommendation.missing_core_skills[:6],
+        },
+        "progress": {
+            "completed_milestone_ids": completed_ids,
+            "completed_task_count": len(completed_ids),
+            "next_milestone_id": next_item.milestone_id if next_item else None,
+            "next_milestone_title": next_item.title if next_item else None,
+            "next_milestone_week": next_item.week if next_item else None,
+        },
         "milestones": [
             {
                 "milestone_id": item.milestone_id,
@@ -207,34 +286,71 @@ def personalize_roadmap_response(
                 "objective": item.objective,
                 "skills": item.skills,
                 "estimated_effort_hours": item.estimated_effort_hours,
-                "practical_task": item.practical_task,
-                "portfolio_deliverable": item.portfolio_deliverable,
+                "completed": item.completed,
             }
             for item in roadmap.weekly_plan
         ],
     }
+    system_prompt = (
+        "You write the personalized text layer for a fixed Pathfinder career roadmap. "
+        "Use ONLY the supplied JSON facts. Return a valid JSON object matching the requested schema.\n\n"
+        "Field rules:\n"
+        "1. fit_explanation: Exactly two or three sentences explaining why this role fits the learner, citing fit score, confirmed strengths, and timeline/hours.\n"
+        "2. adaptation_note:\n"
+        "   - If progress.completed_task_count is 0, return exactly \"\"\n"
+        "   - If progress.completed_task_count > 0, return exactly one sentence stating progress and naming the next milestone (e.g. \"You have completed 2 of 5 milestones; next up is Week 3: Persistent data.\").\n"
+        "3. weekly_focus: Exactly 5 items in milestone order.\n"
+        "   - Each item has milestone_id and personalized_focus.\n"
+        "   - personalized_focus must be 1-2 original sentences providing personalized advice for that milestone: "
+        "reference the learner weekly hours (e.g. 12 hrs/week), their status for that milestone (completed, next active milestone, or upcoming), "
+        "and how their strongest skills or missing core skills apply.\n"
+        "   - STRICT RULE: DO NOT concatenate \"{title}: {objective}\". DO NOT repeat the milestone title or objective verbatim. Write tailored guidance."
+    )
     generated = _structured_completion(
         RoadmapPersonalization,
         settings=settings,
-        system=(
-            "You personalize a fixed Pathfinder roadmap. Use ONLY the JSON facts supplied. "
-            "Return one brief focus for each existing milestone ID, in its supplied order, and one pacing note. "
-            "Never invent or rename a milestone, skill, task, resource, estimate, or deadline."
-        ),
+        system=system_prompt,
         user=json.dumps(context),
     )
     if generated is None:
         return fallback
+
     expected_ids = [item.milestone_id for item in roadmap.weekly_plan]
-    actual_ids = [item.milestone_id for item in generated.milestone_focuses]
-    if actual_ids != expected_ids:
-        logger.info("LLM roadmap personalization changed milestone IDs or order")
+    if sorted(focus.milestone_id for focus in generated.weekly_focus) != sorted(expected_ids):
+        logger.info("LLM roadmap focus referenced an unknown, missing, or duplicate milestone")
         return fallback
-    focuses = {item.milestone_id: item.personalized_focus for item in generated.milestone_focuses}
+
+    focus_by_id = {focus.milestone_id: focus.personalized_focus for focus in generated.weekly_focus}
+    merged_plan = []
+    for item in roadmap.weekly_plan:
+        focus_text = focus_by_id.get(item.milestone_id, "").strip()
+        verbatim = f"{item.title}: {item.objective}".strip()
+        if not focus_text or focus_text == verbatim or focus_text.startswith(f"{item.title}:"):
+            if item.completed:
+                focus_text = f"Milestone completed. You have established a foundation in {item.title}; carry these concepts into upcoming milestones."
+            elif next_item and item.milestone_id == next_item.milestone_id:
+                pace = f"allocating about {hours} hours/week" if hours else "focusing your weekly study time"
+                focus_text = f"Your current active milestone: concentrate on {item.title} by {pace} to complete the practical task."
+            else:
+                pace = f"at {hours} hours/week" if hours else "in your weekly plan"
+                focus_text = f"Upcoming milestone: pace your preparation for {item.title} {pace} once prior milestones are complete."
+        merged_plan.append(item.model_copy(update={"personalized_focus": focus_text}))
+
+    # Enforce the adaptation-note contract regardless of what the model returned:
+    # a specific note whenever progress exists, empty only at genuinely zero completions.
+    if completed_ids:
+        adaptation_note = generated.adaptation_note.strip()
+        if not adaptation_note:
+            adaptation_note = _deterministic_adaptation_note(roadmap, hours)
+            logger.info("LLM adaptation note was empty despite progress; substituted deterministic note")
+    else:
+        adaptation_note = ""
+
     return roadmap.model_copy(
         update={
-            "weekly_plan": [item.model_copy(update={"personalized_focus": focuses[item.milestone_id]}) for item in roadmap.weekly_plan],
-            "adaptation_note": generated.adaptation_note,
+            "weekly_plan": merged_plan,
+            "fit_explanation": generated.fit_explanation,
+            "adaptation_note": adaptation_note,
             "generation_mode": "llm",
         }
     )

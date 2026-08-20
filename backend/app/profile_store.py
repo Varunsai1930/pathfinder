@@ -118,11 +118,12 @@ def upsert_profile(
             logger.error("Supabase connection error: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Database connection error: {exc}",
+                detail="Database connection error.",
             )
-
-    # Mirror into in-memory store
-    _in_memory_profiles[user_id] = payload.model_dump()
+    else:
+        # Local persistence only (tests / Supabase not configured); never mirror
+        # production writes into memory, or a long-lived process grows unbounded.
+        _in_memory_profiles[user_id] = payload.model_dump()
 
     return ProfileResponse(
         interest_responses=payload.interest_responses,

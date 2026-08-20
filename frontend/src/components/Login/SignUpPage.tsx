@@ -26,7 +26,6 @@ export function SignUpPage({ userEmail, onBackToHome, onContinue, onGoToLogin }:
       email,
       options: {
         emailRedirectTo: window.location.origin,
-        shouldCreateUser: true,
       },
     })
     setMessage(error ? error.message : 'Check your email for a secure sign-up link.')
