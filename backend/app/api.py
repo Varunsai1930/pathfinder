@@ -132,7 +132,7 @@ def ask_about_results(
     roadmap = None
     if payload.role_id:
         if payload.role_id not in {recommendation.role_id for recommendation in deterministic_match.recommendations}:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="role_id must be one of your computed results.")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="role_id must be one of your computed results.")
         try:
             roadmap = get_roadmap(user_id=user_id, role_id=payload.role_id, settings=settings)
         except HTTPException as exc:

@@ -67,13 +67,13 @@ def _normalize_interest_profile(profile: MatchProfile) -> RiasecProfile:
         missing = sorted(expected_ids - supplied_ids)
         unknown = sorted(supplied_ids - expected_ids)
         detail = {"message": "Interest responses must include every assessment question exactly once.", "missing": missing, "unknown": unknown}
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
 
     totals: dict[RiasecDimension, list[int]] = defaultdict(list)
     for question in assessment.interest_questions:
         answer = profile.interest_responses[question.id]
         if not 1 <= answer <= 5:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"{question.id} must be an integer from 1 to 5.")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"{question.id} must be an integer from 1 to 5.")
         totals[question.dimension].append(answer)
 
     return RiasecProfile(
@@ -98,7 +98,7 @@ def _validate_skill_ids(profile: MatchProfile) -> None:
     unknown = sorted(set(profile.skill_confidence) - known_skill_ids)
     if unknown:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"message": "Unknown skill IDs are not accepted.", "unknown": unknown},
         )
 

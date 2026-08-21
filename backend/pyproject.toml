@@ -25,6 +25,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = [
+  "ignore",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

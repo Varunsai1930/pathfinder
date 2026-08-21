@@ -3,6 +3,7 @@ import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
 import { AskAboutResults } from '../Questions/AskAboutResults'
 import type { CareerRecommendation, MatchResponse } from '../Results/ResultsPage'
+import { ErrorBoundary, Skeleton } from '../ErrorBoundary'
 
 interface Course {
   id: string
@@ -124,6 +125,7 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
   const [feedbackNote, setFeedbackNote] = useState<string | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [coursesLoading, setCoursesLoading] = useState(true)
+  const [skillNameToIdMap, setSkillNameToIdMap] = useState<Map<string, string> | null>(null)
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
     if (!supabase) throw new Error('Supabase client is not configured.')
@@ -219,20 +221,32 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
 
   useEffect(() => {
     let cancelled = false
-    async function loadCourses() {
+    async function loadCoursesAndSkills() {
       try {
         setCoursesLoading(true)
-        const res = await fetch(`${config.apiUrl}/api/v1/catalog/courses`)
-        if (!res.ok) throw new Error(`Failed to load courses (${res.status})`)
-        const data = (await res.json()) as { courses: Course[] }
+        const [coursesRes, assessmentRes] = await Promise.all([
+          fetch(`${config.apiUrl}/api/v1/catalog/courses`),
+          fetch(`${config.apiUrl}/api/v1/catalog/assessment`),
+        ])
+        if (!coursesRes.ok) throw new Error(`Failed to load courses (${coursesRes.status})`)
+        const data = (await coursesRes.json()) as { courses: Course[] }
         if (!cancelled) setCourses(data.courses)
+        // Derive skill name -> id map from assessment catalog (removes hardcode brittleness)
+        if (assessmentRes.ok) {
+          const assessment = (await assessmentRes.json()) as { skills: { id: string; name: string }[] }
+          const map = new Map<string, string>()
+          for (const s of assessment.skills) {
+            map.set(s.name.toLowerCase(), s.id)
+          }
+          if (!cancelled) setSkillNameToIdMap(map)
+        }
       } catch {
         if (!cancelled) setCourses([])
       } finally {
         if (!cancelled) setCoursesLoading(false)
       }
     }
-    void loadCourses()
+    void loadCoursesAndSkills()
     return () => { cancelled = true }
   }, [])
 
@@ -426,7 +440,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
         </section>
       )}
 
-      <section className="skill-development" aria-labelledby="skill-development-title">
+      <ErrorBoundary>
+        <section className="skill-development" aria-labelledby="skill-development-title">
         <div className="skill-development-header">
           <div>
             <p className="eyebrow">Skill development</p>
@@ -439,7 +454,7 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
         </div>
 
         {skillLoading ? (
-          <p className="skill-development-status" role="status" aria-live="polite">Loading your skill breakdown…</p>
+          <Skeleton lines={3} />
         ) : skillError ? (
           <p className="skill-development-error" role="alert">{skillError}</p>
         ) : !skillRec ? (
@@ -501,9 +516,11 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
             </div>
           </div>
         )}
-      </section>
+        </section>
+      </ErrorBoundary>
 
-      <section className="recommended-courses" aria-labelledby="recommended-courses-title">
+      <ErrorBoundary>
+        <section className="recommended-courses" aria-labelledby="recommended-courses-title">
         <div className="recommended-courses-header">
           <div>
             <p className="eyebrow">Recommended courses</p>
@@ -515,12 +532,13 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
           <span className="recommended-courses-badge">{coursesLoading ? '…' : `${courses.length} in catalog`}</span>
         </div>
         {skillLoading || coursesLoading ? (
-          <p className="recommended-courses-status">Loading recommendations…</p>
+          <Skeleton lines={2} />
         ) : !skillRec ? (
           <p className="recommended-courses-status">Complete the assessment to see course recommendations.</p>
         ) : (() => {
             const skillNameToId = (name: string): string => {
               const lower = name.toLowerCase().trim()
+              if (skillNameToIdMap?.has(lower)) return skillNameToIdMap.get(lower)!
               const map: Record<string, string> = {
                 'html and css': 'html-css',
                 'javascript': 'javascript',
@@ -573,8 +591,19 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
                       </div>
                       {course.prerequisites.length > 0 && (
                         <div className="course-prereqs">
-                          <span>Prerequisites:</span>
-                          <ul>
+                          <span>Prerequisites → Course</span>
+                          <div className="prereq-graph" aria-label={`Prerequisites for ${course.title}`}>
+                            {course.prerequisites.map((pr) => (
+                              <span key={pr} className="prereq-chain">
+                                <span className={`prereq-node ${isPrereqMet(pr) ? 'prereq-node--met' : 'prereq-node--missing'}`}>
+                                  {isPrereqMet(pr) ? '✓' : '○'} {pr}
+                                </span>
+                                <span className="prereq-arrow" aria-hidden="true">→</span>
+                              </span>
+                            ))}
+                            <span className="prereq-node prereq-node--target">{course.skill_ids[0]}</span>
+                          </div>
+                          <ul style={{ display: 'none' }} aria-hidden="true">
                             {course.prerequisites.map((pr) => (
                               <li key={pr} className={isPrereqMet(pr) ? 'prereq-met' : 'prereq-missing'}>
                                 {isPrereqMet(pr) ? '✓' : '○'} {pr}
@@ -590,7 +619,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
               </div>
             )
           })()}
-      </section>
+        </section>
+      </ErrorBoundary>
 
       {feedbackNote && (
         <div className="dashboard-feedback" role="status" aria-live="polite">
@@ -599,7 +629,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
         </div>
       )}
 
-      <section className="learning-patterns" aria-labelledby="learning-patterns-title">
+      <ErrorBoundary>
+        <section className="learning-patterns" aria-labelledby="learning-patterns-title">
         <div className="learning-patterns-header">
           <div>
             <p className="eyebrow">Learning patterns</p>
@@ -637,7 +668,26 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
         {telemetrySummary.paceRatio !== null && telemetrySummary.paceRatio < 0.8 && (
           <p className="learning-insight">Insight: faster than estimated — you can take on stretch content or move up the next portfolio slice.</p>
         )}
-      </section>
+        </section>
+      </ErrorBoundary>
+
+      {(() => {
+        if (telemetrySummary.avgQuiz === null || telemetrySummary.avgQuiz >= 60) return null
+        const lowest = [...roadmap.weekly_plan]
+          .filter((w) => typeof w.quiz_score === 'number')
+          .sort((a, b) => (a.quiz_score ?? 100) - (b.quiz_score ?? 100))[0]
+        const next = roadmap.weekly_plan.find((w) => !w.completed)
+        return (
+          <section className="adaptive-order" aria-labelledby="adaptive-order-title">
+            <p className="eyebrow">Adaptive roadmap</p>
+            <h3 id="adaptive-order-title">Suggested order adjustment</h3>
+            <p>
+              Your quiz average is {telemetrySummary.avgQuiz}% — lower than the 60% threshold. {lowest ? `Consider reviewing Week ${lowest.week}: ${lowest.title} (quiz ${lowest.quiz_score}%)` : 'Review recent milestones'} before advancing
+              {next ? ` to Week ${next.week}: ${next.title}` : ''}. This keeps prerequisites solid while you build confidence.
+            </p>
+          </section>
+        )
+      })()}
 
       <section className="dashboard-milestones" aria-label="Five roadmap milestones">
         {roadmap.weekly_plan.map((week) => (

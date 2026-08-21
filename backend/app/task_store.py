@@ -329,9 +329,9 @@ def update_task_completion(
     now = datetime.now(timezone.utc).isoformat()
     # Validation for telemetry (preserve backward compatibility)
     if time_spent_minutes is not None and not (0 <= time_spent_minutes <= 10080):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="time_spent_minutes must be 0..10080")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="time_spent_minutes must be 0..10080")
     if quiz_score is not None and not (0 <= quiz_score <= 100):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="quiz_score must be 0..100")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="quiz_score must be 0..100")
 
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)

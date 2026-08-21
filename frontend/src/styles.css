@@ -2660,6 +2660,114 @@ button:disabled {
   color: var(--text-secondary);
 }
 
+.prereq-graph {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.prereq-chain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prereq-node {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font: 600 0.68rem 'DM Mono', monospace;
+  border: 1px solid var(--border-subtle);
+}
+
+.prereq-node--met {
+  background: var(--accent-success-soft);
+  border-color: #86EFAC;
+  color: var(--accent-success);
+}
+
+.prereq-node--missing {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.prereq-node--target {
+  background: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.prereq-arrow {
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--border-subtle) 37%, var(--bg-muted) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.adaptive-order {
+  margin: 18px 0;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--accent-primary-soft);
+  border: 1px solid var(--accent-primary);
+  border-left: 4px solid var(--accent-primary);
+}
+
+.adaptive-order h3 {
+  margin: 4px 0 6px;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.adaptive-order p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+.error-boundary {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--accent-danger-soft);
+  border: 1px solid var(--border-danger);
+  color: var(--text-danger);
+}
+
+.error-boundary h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--text-danger);
+}
+
+.error-boundary p {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .course-link {
   margin-top: auto;
   padding-top: 8px;

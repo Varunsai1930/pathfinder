@@ -16,9 +16,10 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
     supabase_jwt_audience: str = "authenticated"
     openrouter_api_key: str | None = None
-    # OpenRouter's auto-router chooses currently available free models with
-    # structured-output support. Do not replace this with a rotating model ID.
-    openrouter_model: str = "openrouter/free"
+    # Pinned free-tier model with structured-output support (verified
+    # https://openrouter.ai/models). Pinned for reproducibility; the
+    # auto-router openrouter/free rotates and harms judge evaluation.
+    openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
     @property
     def cors_origins(self) -> list[str]:
