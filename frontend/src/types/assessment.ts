@@ -33,3 +33,13 @@ export interface AssessmentPayload {
     career_certainty: CareerCertainty
   }
 }
+
+export interface IntakeResponse {
+  goal_summary: string
+  interest_suggestions: Record<string, number>
+  skill_suggestions: Record<string, SkillConfidence>
+  hours_per_week_suggestion: number | null
+  timeline_weeks_suggestion: number | null
+  career_certainty_suggestion: CareerCertainty | null
+  generation_mode: 'llm' | 'fallback'
+}

@@ -19,8 +19,16 @@ try:  # Keep local deterministic tests usable until dependencies are installed.
 except ImportError:  # pragma: no cover - production installs from pyproject.toml
     OpenAI = None  # type: ignore[assignment,misc]
 
+from app.catalog.assessment_loader import get_assessment_catalog
+from app.catalog.models import RiasecDimension
 from app.config import Settings
-from app.matching.models import CareerRecommendation, MatchResponse, ProfileConstraints
+from app.matching.models import (
+    CareerCertainty,
+    CareerRecommendation,
+    MatchResponse,
+    ProfileConstraints,
+    SkillConfidence,
+)
 from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
 
 logger = logging.getLogger(__name__)
@@ -555,3 +563,114 @@ def answer_grounded_question(
         logger.info("LLM Q&A answer included an unowned role or milestone")
         return AskQuestionResponse(answer=fallback, generation_mode="fallback")
     return AskQuestionResponse(answer=generated.answer, generation_mode="llm")
+
+
+class RiasecHints(_StrictModel):
+    """Six fixed 0-100 interest leanings; 50 means no evidence either way."""
+
+    realistic: int = Field(ge=0, le=100)
+    investigative: int = Field(ge=0, le=100)
+    artistic: int = Field(ge=0, le=100)
+    social: int = Field(ge=0, le=100)
+    enterprising: int = Field(ge=0, le=100)
+    conventional: int = Field(ge=0, le=100)
+
+
+class SkillHint(_StrictModel):
+    skill_id: str = Field(min_length=2, max_length=40)
+    confidence: SkillConfidence
+
+
+class GoalExtraction(_StrictModel):
+    """The only structured output accepted from the conversational intake."""
+
+    goal_summary: str = Field(min_length=10, max_length=400)
+    riasec_hints: RiasecHints
+    skill_hints: list[SkillHint] = Field(default_factory=list, max_length=19)
+    hours_per_week_hint: int | None = Field(default=None, ge=1, le=40)
+    timeline_weeks_hint: int | None = Field(default=None, ge=1, le=104)
+    career_certainty_hint: CareerCertainty | None = None
+
+
+class IntakePayload(_StrictModel):
+    goal_text: str = Field(min_length=10, max_length=2000)
+
+
+class IntakeResponse(_StrictModel):
+    """Editable pre-fill suggestions derived from the learner's own goal text.
+
+    Every field is a suggestion the learner reviews in the structured
+    assessment; the deterministic engine never consumes them unconfirmed.
+    """
+
+    goal_summary: str = ""
+    interest_suggestions: dict[str, int] = Field(default_factory=dict)
+    skill_suggestions: dict[str, SkillConfidence] = Field(default_factory=dict)
+    hours_per_week_suggestion: int | None = None
+    timeline_weeks_suggestion: int | None = None
+    career_certainty_suggestion: CareerCertainty | None = None
+    generation_mode: str = "fallback"
+
+
+def _hint_to_response(hint: int) -> int:
+    """Map a 0-100 dimension hint to the assessment's 1-5 response scale."""
+    return 1 + round(hint / 25)
+
+
+def generate_intake_prefill(goal_text: str, settings: Settings) -> IntakeResponse:
+    """Conversational front door: turn free text into reviewable pre-fill hints.
+
+    The LLM only ever sees the goal text and the skill taxonomy; it returns
+    dimension-level hints, and deterministic code maps those to per-question
+    suggestions so the model never touches individual assessment answers.
+    Any provider, schema, or validation failure returns the neutral fallback
+    (empty suggestions) and the learner fills the assessment manually.
+    """
+    assessment = get_assessment_catalog()
+    skills_context = [
+        {"skill_id": skill.id, "skill_name": skill.name}
+        for skill in assessment.skills
+    ]
+    generated = _structured_completion(
+        GoalExtraction,
+        settings=settings,
+        system=(
+            "You convert a learner's free-text career goal into structured pre-fill hints "
+            "for the Pathfinder assessment. Use ONLY claims present in the goal text.\n"
+            "Rules:\n"
+            "1. goal_summary: one or two sentences restating their goal and situation using only their claims.\n"
+            "2. riasec_hints: each RIASEC dimension 0-100, where 50 means no evidence either way. "
+            "Score above 50 only for stated enjoyments, below 50 only for stated dislikes.\n"
+            "3. skill_hints: ONLY skills the text explicitly claims experience with, mapped to confidence: "
+            "'aware' for mentioned familiarity, 'practised' for coursework or exercises, "
+            "'project-ready' for built or shipped projects. Never infer a skill from the goal alone.\n"
+            "4. hours_per_week_hint and timeline_weeks_hint: only when the text states them, else null.\n"
+            "5. career_certainty_hint: 'exploring' when unsure, 'deciding' when comparing options, "
+            "'committed' when a specific role is firmly stated; null when unclear."
+        ),
+        user=json.dumps({"goal_text": goal_text, "known_skills": skills_context}),
+    )
+    if generated is None:
+        return IntakeResponse()
+
+    known_skill_ids = {skill.id for skill in assessment.skills}
+    skill_suggestions: dict[str, SkillConfidence] = {}
+    for hint in generated.skill_hints:
+        if hint.skill_id not in known_skill_ids:
+            logger.info("Intake extraction referenced unknown skill %s; dropping it", hint.skill_id)
+            continue
+        skill_suggestions[hint.skill_id] = hint.confidence
+
+    interest_suggestions = {
+        question.id: _hint_to_response(getattr(generated.riasec_hints, question.dimension.value))
+        for question in assessment.interest_questions
+    }
+    return IntakeResponse(
+        goal_summary=generated.goal_summary,
+        interest_suggestions=interest_suggestions,
+        skill_suggestions=skill_suggestions,
+        hours_per_week_suggestion=generated.hours_per_week_hint,
+        timeline_weeks_suggestion=generated.timeline_weeks_hint,
+        career_certainty_suggestion=generated.career_certainty_hint,
+        generation_mode="llm",
+    )

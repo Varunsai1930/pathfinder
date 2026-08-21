@@ -2959,3 +2959,104 @@ button:disabled {
     height: min(70vh, calc(100vh - 100px));
   }
 }
+
+/* Conversational goal intake (assessment step 1) */
+.goal-intake-card {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 22px;
+}
+.goal-intake-card .input-label {
+  display: block;
+  margin-bottom: 8px;
+}
+.goal-textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  resize: vertical;
+}
+.goal-textarea:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  border-color: var(--accent-primary);
+}
+.goal-meta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 16px;
+}
+.goal-char-count {
+  font: 500 0.72rem 'DM Mono', monospace;
+  color: var(--text-secondary);
+}
+.goal-intake-card .validation-banner {
+  margin-bottom: 16px;
+}
+.goal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.goal-actions .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Post-intake pre-fill notice */
+.intake-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent-primary-soft);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  animation: fadeIn 0.2s ease;
+}
+.intake-notice-icon {
+  font-size: 1rem;
+  color: var(--accent-primary);
+}
+.intake-notice-text {
+  flex: 1;
+  line-height: 1.5;
+}
+.intake-notice-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: 600 0.74rem 'DM Mono', monospace;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.intake-notice-dismiss:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+@media (max-width: 600px) {
+  .goal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .goal-actions .btn-primary,
+  .goal-actions .btn-secondary {
+    width: 100%;
+  }
+}

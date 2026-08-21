@@ -11,12 +11,14 @@ import type {
   AssessmentState,
   CareerCertainty,
   ConstraintsState,
+  IntakeResponse,
   SkillConfidence,
   WorkStyleResponses,
 } from '../../types/assessment'
 import type { MatchResponse } from '../Results/ResultsPage'
 import { ProgressBar } from './ProgressBar'
 import { SectionConstraints } from './SectionConstraints'
+import { SectionGoal } from './SectionGoal'
 import { SectionInterests } from './SectionInterests'
 import { SectionSkills } from './SectionSkills'
 
@@ -24,7 +26,15 @@ interface AssessmentPageProps {
   onBackToHome?: () => void
 }
 
-const STEP_TITLES = ['Interest Exploration', 'Technical Skills', 'Work Style & Constraints']
+const STEP_TITLES = ['Your Goal', 'Interest Exploration', 'Technical Skills', 'Work Style & Constraints']
+const MIN_GOAL_LENGTH = 10
+const TIMELINE_OPTIONS = [8, 12, 24, 36]
+
+function snapTimelineToOfferedOptions(weeks: number): number {
+  return TIMELINE_OPTIONS.reduce((best, option) =>
+    Math.abs(option - weeks) < Math.abs(best - weeks) ? option : best
+  , TIMELINE_OPTIONS[0])
+}
 
 const INITIAL_STATE: AssessmentState = {
   interest_responses: {},
@@ -58,6 +68,11 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [matchLoading, setMatchLoading] = useState(false)
   const [matchError, setMatchError] = useState<string | null>(null)
+
+  const [goalText, setGoalText] = useState('')
+  const [intakeLoading, setIntakeLoading] = useState(false)
+  const [intakeError, setIntakeError] = useState<string | null>(null)
+  const [intakeNotice, setIntakeNotice] = useState<string | null>(null)
 
   const loadData = async () => {
     try {
@@ -154,7 +169,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     if (!catalogBundle) return false
     const missing: string[] = []
 
-    if (step === 1) {
+    if (step === 2) {
       for (const q of catalogBundle.assessment.interest_questions) {
         if (!assessmentState.interest_responses[q.id]) {
           missing.push(q.id)
@@ -170,7 +185,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
       }
     }
 
-    if (step === 2) {
+    if (step === 3) {
       for (const s of catalogBundle.assessment.skills) {
         if (!assessmentState.skill_confidence[s.id]) {
           missing.push(s.id)
@@ -186,7 +201,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
       }
     }
 
-    if (step === 3) {
+    if (step === 4) {
       const wsKeys: Array<keyof WorkStyleResponses> = [
         'analytical',
         'creative',
@@ -241,7 +256,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
   const handleNext = () => {
     if (validateCurrentStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(3, prev + 1))
+      setCurrentStep((prev) => Math.min(STEP_TITLES.length, prev + 1))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -254,8 +269,105 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const handleGoalChange = (value: string) => {
+    setGoalText(value)
+    if (intakeError) setIntakeError(null)
+  }
+
+  const handleSkipIntake = () => {
+    setIntakeError(null)
+    setCurrentStep(2)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleIntakeSubmit = async () => {
+    if (goalText.trim().length < MIN_GOAL_LENGTH) {
+      setIntakeError('Tell us a little more — at least 10 characters so the draft is useful.')
+      return
+    }
+
+    try {
+      setIntakeLoading(true)
+      setIntakeError(null)
+
+      if (!supabase) {
+        throw new Error('Supabase client is not configured. Please check your application environment variables.')
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        throw new Error(`Authentication session error: ${sessionError.message}`)
+      }
+
+      const token = sessionData?.session?.access_token
+      if (!token) {
+        throw new Error('You must be signed in to pre-fill your assessment. Please sign in first, then try again.')
+      }
+
+      const res = await fetch(`${config.apiUrl}/api/v1/intake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ goal_text: goalText.trim() }),
+      })
+
+      if (!res.ok) {
+        let errorDetail = `Failed to generate a draft (${res.status} ${res.statusText})`
+        try {
+          const errJson = await res.json()
+          if (errJson?.detail) {
+            errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail)
+          }
+        } catch {
+          // ignore json parse error
+        }
+        throw new Error(errorDetail)
+      }
+
+      const data: IntakeResponse = await res.json()
+
+      setAssessmentState((prev) => {
+        const skillConfidence = { ...prev.skill_confidence, ...data.skill_suggestions }
+        const constraints = { ...prev.constraints }
+        if (data.hours_per_week_suggestion) {
+          constraints.hours_per_week = data.hours_per_week_suggestion
+        }
+        if (data.timeline_weeks_suggestion) {
+          constraints.target_timeline_weeks = snapTimelineToOfferedOptions(data.timeline_weeks_suggestion)
+        }
+        if (data.career_certainty_suggestion) {
+          constraints.career_certainty = data.career_certainty_suggestion
+        }
+        return {
+          ...prev,
+          interest_responses:
+            Object.keys(data.interest_suggestions).length > 0
+              ? { ...data.interest_suggestions }
+              : prev.interest_responses,
+          skill_confidence: skillConfidence,
+          constraints,
+        }
+      })
+
+      setIntakeNotice(
+        data.generation_mode === 'llm'
+          ? 'We drafted your assessment from your goal. Review and edit anything — you stay in control.'
+          : "We couldn't generate a draft just now, so the assessment starts empty. Fill it in as normal."
+      )
+      setCurrentStep(2)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown network error while drafting your assessment.'
+      setIntakeError(message)
+    } finally {
+      setIntakeLoading(false)
+    }
+  }
+
   const handleSubmit = async () => {
-    if (!validateCurrentStep(3)) return
+    if (!validateCurrentStep(4)) return
 
     const payload: AssessmentPayload = {
       interest_responses: assessmentState.interest_responses,
@@ -397,10 +509,10 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
   let completedCount = answeredInterestsCount
   let totalCount = catalogBundle.assessment.interest_questions.length
-  if (currentStep === 2) {
+  if (currentStep === 3) {
     completedCount = answeredSkillsCount
     totalCount = catalogBundle.assessment.skills.length
-  } else if (currentStep === 3) {
+  } else if (currentStep === 4) {
     completedCount = answeredConstraintsCount
     totalCount = 8
   }
@@ -452,11 +564,26 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
       <ProgressBar
         currentStep={currentStep}
-        totalSteps={3}
+        totalSteps={STEP_TITLES.length}
         stepTitles={STEP_TITLES}
-        completedCount={completedCount}
-        totalCount={totalCount}
+        completedCount={currentStep >= 2 ? completedCount : undefined}
+        totalCount={currentStep >= 2 ? totalCount : undefined}
       />
+
+      {intakeNotice && currentStep >= 2 && (
+        <div className="intake-notice" role="status">
+          <span className="intake-notice-icon">✎</span>
+          <span className="intake-notice-text">{intakeNotice}</span>
+          <button
+            type="button"
+            className="intake-notice-dismiss"
+            onClick={() => setIntakeNotice(null)}
+            aria-label="Dismiss pre-fill notice"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {validationError && (
         <div className="validation-banner" role="alert">
@@ -474,6 +601,17 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
 
       <main className="assessment-body">
         {currentStep === 1 && (
+          <SectionGoal
+            goalText={goalText}
+            onGoalChange={handleGoalChange}
+            onPrefill={handleIntakeSubmit}
+            onSkip={handleSkipIntake}
+            isLoading={intakeLoading}
+            error={intakeError}
+          />
+        )}
+
+        {currentStep === 2 && (
           <SectionInterests
             catalog={catalogBundle.assessment}
             responses={assessmentState.interest_responses}
@@ -482,7 +620,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
           />
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <SectionSkills
             skills={catalogBundle.assessment.skills}
             skillConfidence={assessmentState.skill_confidence}
@@ -492,7 +630,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
           />
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <SectionConstraints
             workStyleResponses={assessmentState.work_style_responses}
             constraints={assessmentState.constraints}
@@ -503,30 +641,28 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         )}
       </main>
 
-      <footer className="assessment-footer-actions">
-        {currentStep > 1 ? (
+      {currentStep > 1 && (
+        <footer className="assessment-footer-actions">
           <button type="button" className="btn-secondary btn-nav" onClick={handleBack} disabled={isSubmitting}>
             ← Back to {STEP_TITLES[currentStep - 2]}
           </button>
-        ) : (
-          <div />
-        )}
 
-        {currentStep < 3 ? (
-          <button type="button" className="btn-primary btn-nav" onClick={handleNext}>
-            Continue to {STEP_TITLES[currentStep]} →
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn-primary btn-nav btn-submit"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving Profile…' : 'Submit assessment →'}
-          </button>
-        )}
-      </footer>
+          {currentStep < STEP_TITLES.length ? (
+            <button type="button" className="btn-primary btn-nav" onClick={handleNext}>
+              Continue to {STEP_TITLES[currentStep]} →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-primary btn-nav btn-submit"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving Profile…' : 'Submit assessment →'}
+            </button>
+          )}
+        </footer>
+      )}
     </div>
   )
 }

@@ -43,9 +43,11 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
 
       <section className="hero" id="top">
         <div>
-          <h1>Choose a career path with evidence—not guesswork.</h1>
+          <h1>The AI can persuade. It can't decide.</h1>
           <p className="lede">
-            Pathfinder compares your interests, current skills, and available time with clear entry-level technology paths. You get a transparent fit score and an actionable plan.
+            Every other tool tells you what to learn. Pathfinder shows you the math, then explains
+            it in plain language — describe your goal in your own words, get a transparent fit
+            score for four tech careers, and follow a plan you can audit.
           </p>
 
           <div className="hero-cta-group">
@@ -93,8 +95,8 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
         <div className="step-grid">
           <article>
             <b>01</b>
-            <h2>Explore your profile</h2>
-            <p>Share your interests, skills, work preferences, and time available each week.</p>
+            <h2>Start with your goal</h2>
+            <p>Describe what you want in your own words. Pathfinder drafts your interests, skills, and time constraints from it — you review and edit every part.</p>
           </article>
           <article>
             <b>02</b>

@@ -9,9 +9,10 @@ Repository: https://github.com/Varunsai1930/pathfinder
 ## What you can do in the app
 
 1. Sign in with email (Supabase OTP).
-2. Complete the three-section assessment: interests, skills, constraints.
-3. See ranked role cards with Pathfinder fit scores, reasons, and skill gaps.
-4. Open a career-path dashboard with milestones, a weekly plan, and task checkboxes.
+2. Describe your goal in plain words — Pathfinder drafts the assessment from it (conversational front door), or skip and fill it in yourself.
+3. Review the three-section assessment draft: interests, skills, constraints.
+4. See ranked role cards with Pathfinder fit scores, reasons, and skill gaps.
+5. Open a career-path dashboard with milestones, a weekly plan, and task checkboxes.
 
 ## Repository layout
 
@@ -103,6 +104,7 @@ These cover catalog loading, representative-profile matching, profile/match endp
 
 All of the following require a Supabase JWT in `Authorization: Bearer <token>`. The user id always comes from the verified token, never from the request body.
 
+- `POST /api/v1/intake` — turn a free-text career goal into reviewable assessment pre-fill hints
 - `POST /api/v1/profile` — save assessment answers
 - `GET /api/v1/profile` — load the saved profile
 - `POST /api/v1/match` — rank the four roles from the saved profile
@@ -122,13 +124,14 @@ Never commit populated `.env` files. Copy the templates:
 
 ## Grounded AI guidance
 
-Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses OpenRouter's `openrouter/free` auto-router for constrained enhancements:
+Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses a pinned OpenRouter model (see `openrouter_model` in `backend/app/config.py`) for constrained enhancements:
 
+- assessment pre-fill hints from a free-text goal (`POST /api/v1/intake`) — the model returns dimension-level hints and deterministic code maps them to editable per-question suggestions;
 - two-to-three sentence fit explanations;
 - a personalized focus and pacing note for the five existing milestones; and
 - a small learner Q&A response based only on that learner's computed match and optional roadmap.
 
-Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs. An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. The auto-router is intentionally not replaced with a named free-tier model, because OpenRouter's available free models rotate.
+Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs (skill IDs for intake). An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. The model is pinned rather than using an auto-router so evaluation behavior stays reproducible.
 
 After adding `OPENROUTER_API_KEY` and deploying the backend, verify that the personalization path is live with an authenticated request; the response must contain `"generation_mode": "llm"`:
 

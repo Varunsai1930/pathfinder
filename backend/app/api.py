@@ -17,7 +17,10 @@ from app.matching.service import match_profile
 from app.personalization import (
     AskQuestionPayload,
     AskQuestionResponse,
+    IntakePayload,
+    IntakeResponse,
     answer_grounded_question,
+    generate_intake_prefill,
     personalize_match_response,
 )
 from app.profile_store import get_profile, upsert_profile
@@ -66,6 +69,21 @@ def match_career_paths(
     )
     deterministic_match = match_profile(profile)
     return personalize_match_response(deterministic_match, stored.constraints, settings)
+
+
+@router.post("/intake", response_model=IntakeResponse, tags=["intake"])
+def goal_intake(
+    payload: IntakePayload,
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> IntakeResponse:
+    """Turn a free-text career goal into reviewable assessment pre-fill hints.
+
+    The conversational front door: the LLM only produces dimension-level
+    hints that deterministic code maps to editable suggestions. The matching
+    engine still runs exclusively on the answers the learner confirms.
+    """
+    return generate_intake_prefill(payload.goal_text, settings)
 
 
 @router.post("/profile", response_model=ProfileResponse, tags=["profile"])

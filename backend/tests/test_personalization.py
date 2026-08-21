@@ -174,7 +174,7 @@ def test_successful_openrouter_path_uses_expected_client_and_returns_llm(
         "base_url": "https://openrouter.ai/api/v1",
         "timeout": 25.0,
     }
-    assert captured["request"]["model"] == "openrouter/free"
+    assert captured["request"]["model"] == configured_openrouter.openrouter_model
     assert captured["request"]["response_format"]["type"] == "json_schema"
 
 
