@@ -1,0 +1,214 @@
+{
+  "schema_version": "1.0.0",
+  "courses": [
+    {
+      "id": "course-html-css-fundamentals",
+      "title": "HTML & CSS Fundamentals",
+      "provider": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Learn/HTML",
+      "skill_ids": ["html-css"],
+      "prerequisites": [],
+      "level": "beginner",
+      "duration_hours": 8,
+      "description": "Semantic HTML and responsive CSS for accessible page structure."
+    },
+    {
+      "id": "course-javascript-essentials",
+      "title": "JavaScript Essentials",
+      "provider": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+      "skill_ids": ["javascript"],
+      "prerequisites": ["html-css"],
+      "level": "beginner",
+      "duration_hours": 12,
+      "description": "Core JavaScript for DOM interaction, state, and browser storage."
+    },
+    {
+      "id": "course-react-beginners",
+      "title": "React for Beginners",
+      "provider": "React",
+      "url": "https://react.dev/learn",
+      "skill_ids": ["react"],
+      "prerequisites": ["javascript", "html-css"],
+      "level": "intermediate",
+      "duration_hours": 14,
+      "description": "Component-based UI with props, state, and reusable patterns in React."
+    },
+    {
+      "id": "course-git-github",
+      "title": "Git and GitHub Mastery",
+      "provider": "GitHub",
+      "url": "https://skills.github.com/",
+      "skill_ids": ["git"],
+      "prerequisites": [],
+      "level": "beginner",
+      "duration_hours": 6,
+      "description": "Commits, branching, pull requests, and collaborative delivery workflows."
+    },
+    {
+      "id": "course-accessibility",
+      "title": "Web Accessibility Fundamentals",
+      "provider": "W3C WAI",
+      "url": "https://www.w3.org/WAI/tutorials/",
+      "skill_ids": ["accessibility"],
+      "prerequisites": ["html-css"],
+      "level": "beginner",
+      "duration_hours": 6,
+      "description": "Keyboard navigation, ARIA, and testing for accessible interfaces."
+    },
+    {
+      "id": "course-frontend-testing",
+      "title": "Frontend Testing with Vitest",
+      "provider": "Vitest",
+      "url": "https://vitest.dev/",
+      "skill_ids": ["testing"],
+      "prerequisites": ["javascript"],
+      "level": "intermediate",
+      "duration_hours": 8,
+      "description": "Write automated checks for browser interactions and component behavior."
+    },
+    {
+      "id": "course-python-foundations",
+      "title": "Python Foundations",
+      "provider": "Python",
+      "url": "https://docs.python.org/3/tutorial/",
+      "skill_ids": ["python"],
+      "prerequisites": [],
+      "level": "beginner",
+      "duration_hours": 10,
+      "description": "Readable Python with data handling, functions, and error management."
+    },
+    {
+      "id": "course-api-design",
+      "title": "API Design with FastAPI",
+      "provider": "FastAPI",
+      "url": "https://fastapi.tiangolo.com/tutorial/",
+      "skill_ids": ["api-design"],
+      "prerequisites": ["python"],
+      "level": "intermediate",
+      "duration_hours": 12,
+      "description": "Design HTTP APIs with validation, status codes, and OpenAPI docs."
+    },
+    {
+      "id": "course-sql-relational",
+      "title": "SQL and Relational Data",
+      "provider": "PostgreSQL",
+      "url": "https://www.postgresql.org/docs/current/tutorial.html",
+      "skill_ids": ["sql"],
+      "prerequisites": ["spreadsheets"],
+      "level": "beginner",
+      "duration_hours": 10,
+      "description": "Model relational data and write queries for business questions."
+    },
+    {
+      "id": "course-auth-basics",
+      "title": "Authentication Basics",
+      "provider": "OWASP",
+      "url": "https://owasp.org/www-project-api-security/",
+      "skill_ids": ["authentication"],
+      "prerequisites": ["api-design", "sql"],
+      "level": "intermediate",
+      "duration_hours": 8,
+      "description": "Token-based auth, secure session handling, and access control."
+    },
+    {
+      "id": "course-spreadsheets",
+      "title": "Spreadsheet Analysis",
+      "provider": "Google",
+      "url": "https://support.google.com/a/users/answer/9282959",
+      "skill_ids": ["spreadsheets"],
+      "prerequisites": [],
+      "level": "beginner",
+      "duration_hours": 6,
+      "description": "Clean, summarize, and chart structured data with spreadsheets."
+    },
+    {
+      "id": "course-data-visualization",
+      "title": "Data Visualisation in Practice",
+      "provider": "DataViz",
+      "url": "https://datavizcatalogue.com/",
+      "skill_ids": ["data-visualization"],
+      "prerequisites": ["spreadsheets", "statistics"],
+      "level": "intermediate",
+      "duration_hours": 8,
+      "description": "Select charts that accurately answer decision questions."
+    },
+    {
+      "id": "course-statistics",
+      "title": "Descriptive Statistics",
+      "provider": "Khan Academy",
+      "url": "https://www.khanacademy.org/math/statistics-probability",
+      "skill_ids": ["statistics"],
+      "prerequisites": ["spreadsheets"],
+      "level": "beginner",
+      "duration_hours": 8,
+      "description": "Distributions, averages, variability, and interpreting summaries."
+    },
+    {
+      "id": "course-data-storytelling",
+      "title": "Data Storytelling",
+      "provider": "Storytelling with Data",
+      "url": "https://www.storytellingwithdata.com/",
+      "skill_ids": ["data-storytelling"],
+      "prerequisites": ["data-visualization", "statistics"],
+      "level": "intermediate",
+      "duration_hours": 6,
+      "description": "Frame findings, limitations, and recommendations for decision makers."
+    },
+    {
+      "id": "course-linux-shell",
+      "title": "Linux and Shell Fundamentals",
+      "provider": "Linux Journey",
+      "url": "https://linuxjourney.com/",
+      "skill_ids": ["linux"],
+      "prerequisites": [],
+      "level": "beginner",
+      "duration_hours": 8,
+      "description": "Navigate Linux, inspect processes, and understand basic networking."
+    },
+    {
+      "id": "course-cloud-basics",
+      "title": "Cloud Fundamentals",
+      "provider": "AWS",
+      "url": "https://aws.amazon.com/training/digital/aws-cloud-practitioner-essentials/",
+      "skill_ids": ["cloud-basics"],
+      "prerequisites": ["linux"],
+      "level": "beginner",
+      "duration_hours": 10,
+      "description": "Compute, storage, networking, and identity in cloud deployments."
+    },
+    {
+      "id": "course-containers",
+      "title": "Containers with Docker",
+      "provider": "Docker",
+      "url": "https://docs.docker.com/get-started/",
+      "skill_ids": ["containers"],
+      "prerequisites": ["linux", "git"],
+      "level": "intermediate",
+      "duration_hours": 8,
+      "description": "Package and run applications consistently with containers."
+    },
+    {
+      "id": "course-ci-cd",
+      "title": "CI/CD with GitHub Actions",
+      "provider": "GitHub",
+      "url": "https://docs.github.com/en/actions",
+      "skill_ids": ["ci-cd"],
+      "prerequisites": ["git", "containers"],
+      "level": "intermediate",
+      "duration_hours": 6,
+      "description": "Automate checks and delivery pipelines for reliable releases."
+    },
+    {
+      "id": "course-monitoring",
+      "title": "Monitoring and Observability",
+      "provider": "Grafana",
+      "url": "https://grafana.com/docs/",
+      "skill_ids": ["monitoring"],
+      "prerequisites": ["cloud-basics", "containers"],
+      "level": "intermediate",
+      "duration_hours": 6,
+      "description": "Health checks, logs, and dashboards to observe deployed services."
+    }
+  ]
+}

@@ -26,6 +26,45 @@ from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
 logger = logging.getLogger(__name__)
 _OutputModel = TypeVar("_OutputModel", bound=BaseModel)
 
+# Skill/trait attribution is only allowed when the profile actually confirmed
+# the skill. These patterns catch the observed fabrication shapes ("your
+# analytical mindset", "your Python skills", "skilled in SQL") while letting
+# honest gap language ("missing core skills", "no confirmed skills") through.
+_ATTRIBUTION_RE = re.compile(
+    r"\byour\s+[\w\-/]+(?:\s+[\w\-/]+){0,3}\s+"
+    r"(?:skills?|strengths?|abilities|expertise|proficiency|familiarity|"
+    r"foundation|background|knowledge|experience|grasp|command|understanding)\b"
+    r"|\byour\s+(?:analytical|structured|creative|collaborative|systematic|"
+    r"systems[- ]oriented|methodical|detail[- ]oriented|organized|organised|"
+    r"logical|problem[- ]solving)\b"
+    r"|\byou\s+(?:are|seem|appear)\s+(?:\w+\s+){0,2}?"
+    r"(?:analytical|structured|creative|collaborative|systematic|methodical|"
+    r"detail[- ]oriented|organized|organised|logical)\b"
+    r"|\bas\s+an?\s+(?:analytical|structured|creative|collaborative|"
+    r"systematic|methodical|detail[- ]oriented|organized|organised|logical)\b"
+    r"|\b(?:skilled|proficient|adept|experienced|well[- ]versed)\s+in\s+"
+    r"[\w\-/]+(?:\s+(?:and|or)\s+[\w\-/]+){0,3}\b"
+    r"|\bstrengths?\s+in\s+[\w\-/]+(?:\s+(?:and|or)\s+[\w\-/]+){0,3}\b"
+    r"|\b(?:quick|fast)\s+learner\b"
+    r"|\byou\s+have\s+(?:a|an)?\s*(?:knack|talent|flair|aptitude)\b"
+    r"|\byour\s+(?:knack|talent|flair|aptitude)\b",
+    re.I,
+)
+_ATTRIBUTION_NEGATION_RE = re.compile(
+    r"\b(no|not|none|without|lacks?|missing|unconfirmed|few|limited|little|zero)\b",
+    re.I,
+)
+
+# Honest signals that generated prose actually confronted an infeasible
+# timeline instead of asserting the plan fits.
+_TIMELINE_CONCERN_PHRASES = (
+    "longer than", "more time", "exceeds", "exceed the", "exceed your",
+    "beyond the", "beyond your", "past the", "past your", "over your",
+    "over the target", "miss the", "will not fit", "won't fit",
+    "not fit the", "too tight", "tight timeline", "unrealistic", "ambitious",
+    "behind", "reassess", "reconsider", "extend", "extend your",
+)
+
 
 class _StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -234,18 +273,101 @@ def _deterministic_adaptation_note(
     return note[:239] + "." if len(note) > 240 else note
 
 
-def _fallback_roadmap(roadmap: RoadmapResponse, hours_per_week: int | None) -> RoadmapResponse:
+def _timeline_facts(
+    roadmap: RoadmapResponse, hours_per_week: int | None, target_weeks: int | None
+) -> tuple[int, float | None, bool]:
+    """Compute feasibility deterministically; the LLM never derives it itself."""
+    total_milestone_hours = sum(item.estimated_effort_hours for item in roadmap.weekly_plan)
+    weeks_needed = round(total_milestone_hours / hours_per_week, 1) if hours_per_week else None
+    feasible = weeks_needed is not None and target_weeks is not None and weeks_needed <= target_weeks
+    return total_milestone_hours, weeks_needed, feasible
+
+
+def _deterministic_fit_explanation(
+    recommendation: CareerRecommendation | None,
+    weeks_needed: float | None,
+    target_weeks: int | None,
+) -> str:
+    """Honest fallback prose: real score, low-fit candor, computed timeline verdict."""
+    if recommendation is None:
+        return ""
+    fit = round(recommendation.pathfinder_fit_score)
+    sentences = [f"{recommendation.role_title} scored {fit}/100 for fit in your assessment."]
+    if fit < 50:
+        sentences.append(
+            "That is a lower-alignment path: it overlaps only weakly with the interests and skills you supplied."
+        )
+    if weeks_needed is not None and target_weeks is not None and weeks_needed > target_weeks:
+        sentences.append(
+            f"At your current pace the milestones need about {weeks_needed:g} weeks, "
+            f"longer than your {target_weeks}-week target."
+        )
+    return " ".join(sentences)
+
+
+def _mentions_timeline_concern(text: str, weeks_needed: float | None) -> bool:
+    """True if generated prose honestly confronts a computed timeline overrun."""
+    if weeks_needed is None:
+        return True
+    lowered = text.lower()
+    if any(phrase in lowered for phrase in _TIMELINE_CONCERN_PHRASES):
+        return True
+    return re.search(rf"\b{round(weeks_needed):d}\b", text) is not None
+
+
+def _normalise_skill_text(value: str) -> str:
+    """Make catalog skill names and prose comparable without fuzzy matching."""
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _mentions_confirmed_skill(text: str, confirmed_skills: list[str]) -> bool:
+    """True only when an attribution literally includes a confirmed skill name."""
+    normalized_text = _normalise_skill_text(text)
+    for skill in confirmed_skills:
+        normalized_skill = _normalise_skill_text(skill)
+        if normalized_skill and re.search(rf"\b{re.escape(normalized_skill)}\b", normalized_text):
+            return True
+    return False
+
+
+def _attributes_unsupplied_skills(text: str, confirmed_skills: list[str]) -> bool:
+    """Detect learner skill/trait claims that cannot be tied to confirmed skills.
+
+    With no confirmed skills, every positive attribution is unsupported. With a
+    partial list, an attribution is permitted only if the attributed phrase
+    literally names at least one confirmed skill; this rejects claims such as
+    "your strong React skills" for a learner whose only confirmed skill is
+    Python, while allowing "your Python skills".
+    """
+    for match in _ATTRIBUTION_RE.finditer(text):
+        span = match.group(0)
+        if _ATTRIBUTION_NEGATION_RE.search(span) or "n't" in span:
+            continue
+        if not _mentions_confirmed_skill(span, confirmed_skills):
+            return True
+    return False
+
+
+def _fallback_roadmap(
+    roadmap: RoadmapResponse,
+    hours_per_week: int | None,
+    recommendation: CareerRecommendation | None = None,
+    weeks_needed: float | None = None,
+    target_weeks: int | None = None,
+) -> RoadmapResponse:
     adapted = [
         item.model_copy(update={"personalized_focus": _deterministic_focus(item)})
         for item in roadmap.weekly_plan
     ]
-    return roadmap.model_copy(
-        update={
-            "weekly_plan": adapted,
-            "adaptation_note": _deterministic_adaptation_note(roadmap, hours_per_week),
-            "generation_mode": "fallback",
-        }
-    )
+    update: dict[str, Any] = {
+        "weekly_plan": adapted,
+        "adaptation_note": _deterministic_adaptation_note(roadmap, hours_per_week),
+        "generation_mode": "fallback",
+    }
+    deterministic_fit = _deterministic_fit_explanation(recommendation, weeks_needed, target_weeks)
+    if deterministic_fit:
+        update["fit_explanation"] = deterministic_fit
+    return roadmap.model_copy(update=update)
 
 
 def personalize_roadmap_response(
@@ -256,7 +378,11 @@ def personalize_roadmap_response(
 ) -> RoadmapResponse:
     """Personalize presentation only; all roadmap facts must match the catalog exactly."""
     hours = constraints.hours_per_week if constraints else None
-    fallback = _fallback_roadmap(roadmap, hours)
+    target_weeks = constraints.target_timeline_weeks if constraints else None
+    total_milestone_hours, weeks_needed, timeline_feasible = _timeline_facts(roadmap, hours, target_weeks)
+    fallback = _fallback_roadmap(
+        roadmap, hours, recommendation=recommendation, weeks_needed=weeks_needed, target_weeks=target_weeks
+    )
     if recommendation is None:
         return fallback
 
@@ -267,7 +393,10 @@ def personalize_roadmap_response(
             "role_title": recommendation.role_title,
             "fit_score": round(recommendation.pathfinder_fit_score),
             "hours_per_week": hours,
-            "target_timeline_weeks": constraints.target_timeline_weeks if constraints else None,
+            "target_timeline_weeks": target_weeks,
+            "total_milestone_hours": total_milestone_hours,
+            "weeks_needed": weeks_needed,
+            "timeline_feasible": timeline_feasible,
             "strongest_skills": recommendation.confirmed_skills[:6],
             "missing_core_skills": recommendation.missing_core_skills[:6],
         },
@@ -304,7 +433,15 @@ def personalize_roadmap_response(
         "   - personalized_focus must be 1-2 original sentences providing personalized advice for that milestone: "
         "reference the learner weekly hours (e.g. 12 hrs/week), their status for that milestone (completed, next active milestone, or upcoming), "
         "and how their strongest skills or missing core skills apply.\n"
-        "   - STRICT RULE: DO NOT concatenate \"{title}: {objective}\". DO NOT repeat the milestone title or objective verbatim. Write tailored guidance."
+        "   - STRICT RULE: DO NOT concatenate \"{title}: {objective}\". DO NOT repeat the milestone title or objective verbatim. Write tailored guidance.\n"
+        "4. Timeline honesty: learner.weeks_needed, learner.total_milestone_hours, and learner.target_timeline_weeks are pre-computed facts; never recalculate them. "
+        "If weeks_needed exceeds target_timeline_weeks, fit_explanation MUST name this mismatch honestly "
+        "(e.g. \"at your current pace this will take approximately X weeks, longer than the Y-week target\") rather than asserting the plan fits the timeline.\n"
+        "5. Skill honesty: attribute to the learner ONLY skills literally present in learner.strongest_skills. "
+        "Do NOT attribute any unlisted skill or trait (analytical, structured, detail-oriented, quick learner, strong background, etc.) to the learner, even when strongest_skills is non-empty; "
+        "describe the roadmap and milestones without claiming personal strengths that were not supplied. Naming missing_core_skills as gaps to close is allowed.\n"
+        "6. fit_score honesty: do not default to positive framing regardless of score. If learner.fit_score is below 50, "
+        "fit_explanation MUST acknowledge this is a lower-alignment path rather than calling it a moderate or good match."
     )
     generated = _structured_completion(
         RoadmapPersonalization,
@@ -318,6 +455,21 @@ def personalize_roadmap_response(
     expected_ids = [item.milestone_id for item in roadmap.weekly_plan]
     if sorted(focus.milestone_id for focus in generated.weekly_focus) != sorted(expected_ids):
         logger.info("LLM roadmap focus referenced an unknown, missing, or duplicate milestone")
+        return fallback
+
+    generated_prose = " ".join(
+        [generated.fit_explanation, *(focus.personalized_focus for focus in generated.weekly_focus)]
+    )
+    if _attributes_unsupplied_skills(generated_prose, recommendation.confirmed_skills):
+        logger.info("LLM roadmap text attributed unconfirmed skills or traits; using deterministic fallback")
+        return fallback
+    if (
+        weeks_needed is not None
+        and target_weeks is not None
+        and weeks_needed > target_weeks
+        and not _mentions_timeline_concern(generated_prose, weeks_needed)
+    ):
+        logger.info("LLM roadmap text ignored the computed timeline mismatch; using deterministic fallback")
         return fallback
 
     focus_by_id = {focus.milestone_id: focus.personalized_focus for focus in generated.weekly_focus}

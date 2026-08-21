@@ -33,6 +33,8 @@ class WeeklyPlanItem(BaseModel):
     task_id: UUID | None = None
     completed: bool = False
     personalized_focus: str = ""
+    time_spent_minutes: int | None = None
+    quiz_score: int | None = None
 
 
 class RoadmapResponse(BaseModel):

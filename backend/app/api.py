@@ -3,8 +3,9 @@ from uuid import UUID
 
 from app.auth import get_current_user
 from app.catalog.assessment_loader import get_assessment_catalog
+from app.catalog.courses_loader import get_courses_catalog
 from app.catalog.loader import get_catalog
-from app.catalog.models import AssessmentCatalog, Catalog
+from app.catalog.models import AssessmentCatalog, Catalog, CourseCatalog
 from app.config import Settings, get_settings
 from app.matching.models import (
     MatchProfile,
@@ -38,6 +39,12 @@ def list_roles() -> Catalog:
 def get_assessment() -> AssessmentCatalog:
     """Return questions and profile skill options used to create a user profile."""
     return get_assessment_catalog()
+
+
+@router.get("/catalog/courses", response_model=CourseCatalog, tags=["catalog"])
+def list_courses() -> CourseCatalog:
+    """Return the curated course catalog mapped to skill taxonomy with prerequisites."""
+    return get_courses_catalog()
 
 
 @router.post("/match", response_model=MatchResponse, tags=["matching"])
@@ -141,10 +148,16 @@ def update_task(
     user_id: str = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> TaskUpdateResponse:
-    """Update the caller's task completion state and return their next action."""
+    """Update the caller's task completion state and return their next action.
+
+    P2: also persists telemetry (time_spent_minutes, quiz_score) and triggers
+    feedback-loop skill promotion.
+    """
     return update_task_completion(
         user_id=user_id,
         task_id=task_id,
         completed=payload.completed,
         settings=settings,
+        time_spent_minutes=payload.time_spent_minutes,
+        quiz_score=payload.quiz_score,
     )

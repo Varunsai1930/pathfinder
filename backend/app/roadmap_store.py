@@ -74,6 +74,8 @@ def _response_from_row(row: dict[str, Any], user_id: str, settings: Settings) ->
             **item,
             "task_id": tasks_by_milestone.get(item["milestone_id"], {}).get("id"),
             "completed": tasks_by_milestone.get(item["milestone_id"], {}).get("completed", False),
+            "time_spent_minutes": tasks_by_milestone.get(item["milestone_id"], {}).get("time_spent_minutes"),
+            "quiz_score": tasks_by_milestone.get(item["milestone_id"], {}).get("quiz_score"),
         }
         for item in row["weekly_plan"]
     ]

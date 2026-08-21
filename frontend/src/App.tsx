@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AssessmentPage } from './components/Assessment/AssessmentPage'
+import { ChatWidget } from './components/Chat/ChatWidget'
 import { DashboardRoute } from './components/Dashboard/DashboardRoute'
 import { LandingPage } from './components/Landing/LandingPage'
 import { LoginPage } from './components/Login/LoginPage'
@@ -68,78 +69,81 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <LandingPage
-            userEmail={userEmail}
-            onSignIn={() => navigate('/login')}
-            onStart={() => navigate(userEmail ? '/assessment' : '/signup')}
-            onSignOut={handleSignOut}
-            onAskQuestions={() => navigate('/questions')}
-          />
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <LoginPage
-            userEmail={userEmail}
-            onBackToHome={() => navigate('/')}
-            onContinue={() => navigate('/assessment')}
-            onGoToSignUp={() => navigate('/signup')}
-          />
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          <SignUpPage
-            userEmail={userEmail}
-            onBackToHome={() => navigate('/')}
-            onContinue={() => navigate('/assessment')}
-            onGoToLogin={() => navigate('/login')}
-          />
-        }
-      />
-      <Route
-        path="/assessment"
-        element={
-          <main>
-            <AssessmentPage onBackToHome={() => navigate('/')} />
-          </main>
-        }
-      />
-      <Route
-        path="/questions"
-        element={
-          <QuestionsPage
-            userEmail={userEmail}
-            onBackToHome={() => navigate('/')}
-            onSignIn={() => navigate('/login')}
-            onSignUp={() => navigate('/signup')}
-          />
-        }
-      />
-      <Route
-        path="/results"
-        element={
-          <main>
-            <ResultsRoute />
-          </main>
-        }
-      />
-      <Route
-        path="/dashboard/:roleId"
-        element={
-          <main>
-            <DashboardRoute />
-          </main>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              userEmail={userEmail}
+              onSignIn={() => navigate('/login')}
+              onStart={() => navigate(userEmail ? '/assessment' : '/signup')}
+              onSignOut={handleSignOut}
+              onAskQuestions={() => navigate('/questions')}
+            />
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <LoginPage
+              userEmail={userEmail}
+              onBackToHome={() => navigate('/')}
+              onContinue={() => navigate('/assessment')}
+              onGoToSignUp={() => navigate('/signup')}
+            />
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <SignUpPage
+              userEmail={userEmail}
+              onBackToHome={() => navigate('/')}
+              onContinue={() => navigate('/assessment')}
+              onGoToLogin={() => navigate('/login')}
+            />
+          }
+        />
+        <Route
+          path="/assessment"
+          element={
+            <main>
+              <AssessmentPage onBackToHome={() => navigate('/')} />
+            </main>
+          }
+        />
+        <Route
+          path="/questions"
+          element={
+            <QuestionsPage
+              userEmail={userEmail}
+              onBackToHome={() => navigate('/')}
+              onSignIn={() => navigate('/login')}
+              onSignUp={() => navigate('/signup')}
+            />
+          }
+        />
+        <Route
+          path="/results"
+          element={
+            <main>
+              <ResultsRoute />
+            </main>
+          }
+        />
+        <Route
+          path="/dashboard/:roleId"
+          element={
+            <main>
+              <DashboardRoute />
+            </main>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <ChatWidget />
+    </>
   )
 }
 

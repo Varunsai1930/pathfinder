@@ -166,3 +166,41 @@ class Catalog(BaseModel):
         if len({role.id for role in roles}) != len(roles):
             raise ValueError("role IDs must be unique")
         return roles
+
+
+class CourseLevel(str, Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+
+
+class Course(BaseModel):
+    id: str = Field(pattern=r"^[a-z0-9-]+$")
+    title: str = Field(min_length=4, max_length=120)
+    provider: str = Field(min_length=2, max_length=80)
+    url: HttpUrl
+    skill_ids: list[str] = Field(min_length=1, max_length=3)
+    prerequisites: list[str] = Field(default_factory=list, max_length=5)
+    level: CourseLevel
+    duration_hours: int = Field(ge=1, le=40)
+    description: str = Field(min_length=20, max_length=280)
+
+    @field_validator("skill_ids", "prerequisites")
+    @classmethod
+    def ids_are_valid_skill_pattern(cls, ids: list[str]) -> list[str]:
+        for sid in ids:
+            if not sid or not all(c.isalnum() or c == "-" for c in sid):
+                raise ValueError(f"invalid skill id: {sid}")
+        return ids
+
+
+class CourseCatalog(BaseModel):
+    schema_version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
+    courses: list[Course] = Field(min_length=4)
+
+    @field_validator("courses")
+    @classmethod
+    def course_ids_are_unique(cls, courses: list[Course]) -> list[Course]:
+        if len({c.id for c in courses}) != len(courses):
+            raise ValueError("course IDs must be unique")
+        return courses

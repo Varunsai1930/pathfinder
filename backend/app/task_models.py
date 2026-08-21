@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 class TaskCompletionPayload(BaseModel):
     completed: bool
+    time_spent_minutes: int | None = None
+    quiz_score: int | None = None
 
 
 class NextAction(BaseModel):
@@ -27,8 +29,12 @@ class TaskResponse(BaseModel):
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    time_spent_minutes: int | None = None
+    quiz_score: int | None = None
 
 
 class TaskUpdateResponse(BaseModel):
     task: TaskResponse
     next_action: NextAction
+    skill_progression: dict | None = None
+    telemetry_summary: dict | None = None
