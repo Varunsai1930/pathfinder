@@ -45,8 +45,9 @@ function useTopPath(userEmail: string | null): TopPath | null {
         const headers = { Authorization: `Bearer ${token}` }
 
         let res = await fetch(`${config.apiUrl}/api/v1/match`, { headers })
-        if (res.status === 404) {
-          // No fresh persisted result: compute once only if a profile exists.
+        if (res.status === 404 || res.status === 405) {
+          // 404: no fresh persisted result (or no profile yet). 405: backend
+          // build predates GET /match — compute once only if a profile exists.
           const profileRes = await fetch(`${config.apiUrl}/api/v1/profile`, { headers })
           if (profileRes.status === 404) return
           res = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })

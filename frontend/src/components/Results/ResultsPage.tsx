@@ -138,10 +138,11 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
         setIsLoading(false)
         return
       }
-      if (cached.status !== 404) {
+      if (cached.status !== 404 && cached.status !== 405) {
         throw new Error(await detailFromResponse(cached, `Failed to load results (${cached.status})`))
       }
       // 404: no persisted result for this profile version — compute once.
+      // 405: backend build predates GET /match — compute (POST) as before.
       await fetchMatch()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error while loading results.')
