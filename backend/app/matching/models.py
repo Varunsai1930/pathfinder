@@ -71,6 +71,8 @@ class ProfileResponse(BaseModel):
     work_style_responses: WorkStyleResponses
     constraints: ProfileConstraints
     goal_text: str | None = None
+    # Most recently explored path; the progress page prefers it over the top match.
+    selected_role_id: str | None = None
 
 
 class ScoreBreakdown(BaseModel):

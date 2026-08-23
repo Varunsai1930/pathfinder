@@ -131,6 +131,7 @@ def upsert_profile(
         _in_memory_profiles[user_id] = {
             **payload.model_dump(),
             "goal_text": payload.goal_text or previous.get("goal_text"),
+            "selected_role_id": previous.get("selected_role_id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -179,6 +180,7 @@ def get_profile(
                         career_certainty=CareerCertainty(row.get("career_certainty")),
                     ),
                     goal_text=row.get("goal_text"),
+                    selected_role_id=row.get("selected_role_id"),
                 )
             elif resp.status_code == 404:
                 raise HTTPException(
@@ -211,6 +213,7 @@ def get_profile(
         work_style_responses=WorkStyleResponses(**(stored["work_style_responses"])),
         constraints=ProfileConstraints(**(stored["constraints"])),
         goal_text=stored.get("goal_text"),
+        selected_role_id=stored.get("selected_role_id"),
     )
 
 

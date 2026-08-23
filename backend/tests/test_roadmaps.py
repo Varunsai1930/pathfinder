@@ -80,3 +80,36 @@ def test_roadmap_cross_user_isolation(client: TestClient) -> None:
     user_a_fetched = client.get(f"/api/v1/roadmaps/{ROLE_ID}")
     assert user_a_fetched.status_code == 200
     assert user_a_fetched.json()["role_id"] == ROLE_ID
+
+
+def test_roadmap_creation_marks_selected_role_on_profile(client: TestClient) -> None:
+    client.post("/api/v1/profile", json={
+        "interest_responses": {f"q{i}": 3 for i in range(1, 19)},
+        "skill_confidence": {"git": "aware"},
+        "work_style_responses": {
+            "analytical": 3, "creative": 3, "collaborative": 3,
+            "structured": 3, "systems_oriented": 3,
+        },
+        "constraints": {"hours_per_week": 10, "target_timeline_weeks": 24, "career_certainty": "exploring"},
+    })
+
+    assert client.post("/api/v1/roadmaps/frontend-developer").status_code == 200
+    stored = client.get("/api/v1/profile").json()
+    assert stored["selected_role_id"] == "frontend-developer"
+
+    # Exploring a different path switches the tracked role.
+    assert client.post("/api/v1/roadmaps/backend-developer").status_code == 200
+    assert client.get("/api/v1/profile").json()["selected_role_id"] == "backend-developer"
+
+    # Resubmitting the assessment must not wipe the tracked role.
+    payload = {
+        "interest_responses": {f"q{i}": 4 for i in range(1, 19)},
+        "skill_confidence": {"git": "practised"},
+        "work_style_responses": {
+            "analytical": 4, "creative": 3, "collaborative": 3,
+            "structured": 4, "systems_oriented": 4,
+        },
+        "constraints": {"hours_per_week": 12, "target_timeline_weeks": 24, "career_certainty": "deciding"},
+    }
+    assert client.post("/api/v1/profile", json=payload).status_code == 200
+    assert client.get("/api/v1/profile").json()["selected_role_id"] == "backend-developer"

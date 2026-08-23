@@ -15,6 +15,7 @@ interface LandingPageProps {
   onSignOut: () => void
   onAskQuestions: () => void
   onOpenDashboard: (roleId: string, roleTitle?: string) => void
+  onTrackProgress: () => void
   onViewResults: () => void
 }
 
@@ -81,6 +82,7 @@ export function LandingPage({
   onSignOut,
   onAskQuestions,
   onOpenDashboard,
+  onTrackProgress,
   onViewResults,
 }: LandingPageProps) {
   const topPath = useTopPath(userEmail)
@@ -159,7 +161,7 @@ export function LandingPage({
               <button
                 type="button"
                 className="score-card-cta"
-                onClick={() => onOpenDashboard(topPath.role_id, topPath.role_title)}
+                onClick={onTrackProgress}
               >
                 Track my progress →
               </button>

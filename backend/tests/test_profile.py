@@ -83,7 +83,7 @@ def test_profile_not_found_returns_clean_404(client: TestClient) -> None:
 def test_profile_authenticated_roundtrip(client: TestClient) -> None:
     """POST /profile then GET /profile returns exact persisted profile payload."""
     payload = _sample_payload(hours=20, certainty="committed")
-    expected = {**payload, "goal_text": None}
+    expected = {**payload, "goal_text": None, "selected_role_id": None}
 
     # POST /profile
     post_res = client.post("/api/v1/profile", json=payload)

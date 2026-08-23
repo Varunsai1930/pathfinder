@@ -6,6 +6,7 @@ import { DashboardRoute } from './components/Dashboard/DashboardRoute'
 import { LandingPage } from './components/Landing/LandingPage'
 import { LoginPage } from './components/Login/LoginPage'
 import { SignUpPage } from './components/Login/SignUpPage'
+import { ProgressPage } from './components/Progress/ProgressPage'
 import { QuestionsPage } from './components/Questions/QuestionsPage'
 import { ResultsPage, type MatchResponse } from './components/Results/ResultsPage'
 import { supabase } from './lib/supabase'
@@ -84,6 +85,7 @@ function App() {
                 navigate(`/dashboard/${roleId}`, { state: { roleTitle } })
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
+              onTrackProgress={() => navigate('/progress')}
               onViewResults={() => navigate('/results')}
             />
           }
@@ -134,6 +136,21 @@ function App() {
           element={
             <main>
               <ResultsRoute />
+            </main>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <main>
+              <ProgressPage
+                onBackToHome={() => navigate('/')}
+                onOpenDashboard={(roleId, roleTitle) => {
+                  navigate(`/dashboard/${roleId}`, { state: { roleTitle } })
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                onViewResults={() => navigate('/results')}
+              />
             </main>
           }
         />

@@ -14,8 +14,12 @@ from app.catalog.loader import get_catalog
 from app.config import Settings
 from app.matching.models import MatchProfile
 from app.matching.service import match_profile
-from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
-from app.profile_store import get_profile
+from app.profile_store import (
+    _get_postgrest_headers,
+    _in_memory_profiles,
+    _sanitize_supabase_url,
+    get_profile,
+)
 from app.personalization import personalize_roadmap_response
 from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
 from app.task_store import create_roadmap_tasks, task_states_for_roadmap
@@ -132,6 +136,34 @@ def _fresh_display_layer(
     return _personalized_or_fallback_roadmap(response, user_id=user_id, settings=settings)
 
 
+
+def _mark_selected_role(user_id: str, role_id: str, settings: Settings) -> None:
+    """Record the learner's most recently explored path on their profile.
+
+    Best-effort: the progress page uses this to track the roadmap the learner
+    actually chose (falling back to their top match). Never fails the roadmap.
+    """
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
+        base_url = _sanitize_supabase_url(settings.supabase_url)
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                client.patch(
+                    f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}",
+                    headers={
+                        **_get_postgrest_headers(settings),
+                        "Content-Type": "application/json",
+                        "Prefer": "return=minimal",
+                    },
+                    json={"selected_role_id": role_id},
+                )
+        except Exception as exc:
+            logger.info("Selected-role marker skipped: %s", exc)
+        return
+    stored = _in_memory_profiles.get(user_id)
+    if stored is not None:
+        stored["selected_role_id"] = role_id
+
+
 def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
     """Persist a deterministic roadmap with an optional validated LLM display layer."""
     weekly_plan = _weekly_plan_for(role_id)
@@ -236,6 +268,7 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
         weekly_plan=weekly_plan,
         settings=settings,
     )
+    _mark_selected_role(user_id=user_id, role_id=role_id, settings=settings)
     return _fresh_display_layer(
         _response_from_row(stored_row, user_id=user_id, settings=settings),
         user_id=user_id,
