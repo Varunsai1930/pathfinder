@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
 
@@ -32,9 +32,15 @@ const roles = [
  *  welcome-back card; silently keeps the example card when none exists. */
 function useTopPath(userEmail: string | null): TopPath | null {
   const [topPath, setTopPath] = useState<TopPath | null>(null)
+  // The fetch chain starts on mount — in parallel with the app restoring the
+  // session — instead of waiting for userEmail to flip. It re-triggers when
+  // auth state lands (magic-link sign-in with the page already open), but
+  // terminal outcomes (real card shown, or confirmed no assessment) are
+  // never re-fetched. A missing session is not terminal: sign-in may follow.
+  const settledRef = useRef(false)
 
   useEffect(() => {
-    if (!userEmail || !supabase) return
+    if (settledRef.current || !supabase) return
     const client = supabase
     let cancelled = false
 
@@ -50,21 +56,25 @@ function useTopPath(userEmail: string | null): TopPath | null {
           // 404: no fresh persisted result (or no profile yet). 405: backend
           // build predates GET /match — compute once only if a profile exists.
           const profileRes = await fetch(`${config.apiUrl}/api/v1/profile`, { headers })
-          if (profileRes.status === 404) return
+          if (profileRes.status === 404) {
+            settledRef.current = true
+            return
+          }
           res = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })
         }
         if (!res.ok) return
         const data = await res.json()
         const top = data.recommendations?.[0]
-        if (!cancelled && top) {
-          setTopPath({
-            role_id: top.role_id,
-            role_title: top.role_title,
-            fit: Math.round(top.pathfinder_fit_score),
-          })
-        }
+        if (cancelled || !top) return
+        settledRef.current = true
+        setTopPath({
+          role_id: top.role_id,
+          role_title: top.role_title,
+          fit: Math.round(top.pathfinder_fit_score),
+        })
       } catch {
-        // Landing stays on the example card — never block the page on this.
+        // Transient failure — landing stays on the example card; a later
+        // auth-state trigger may retry.
       }
     }
 
