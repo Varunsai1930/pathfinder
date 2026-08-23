@@ -155,6 +155,7 @@ export function LandingPage({
               <strong>
                 {topPath.fit} <small>fit score</small>
               </strong>
+              <footer>Pick up your milestones right where you left them.</footer>
               <button
                 type="button"
                 className="score-card-cta"
@@ -162,7 +163,6 @@ export function LandingPage({
               >
                 Go to my dashboard →
               </button>
-              <footer>Pick up your milestones right where you left them.</footer>
             </>
           ) : (
             <>

@@ -425,6 +425,11 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+/* Real-card variant only: the footer sits directly under the fit number. */
+.score-card strong + footer {
+  margin-top: 14px;
+}
+
 /* Steps & Paths */
 .steps,
 .paths {
