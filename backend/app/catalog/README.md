@@ -1,6 +1,6 @@
 # Pathfinder role catalog
 
-`roles.v1.json` is the versioned source of truth for Pathfinder's four supported student career paths.
+`roles.v1.json` is the versioned source of truth for Pathfinder's supported student career paths.
 
 ## What is grounded
 
@@ -15,7 +15,7 @@ Each path points to a closest O*NET occupation and its current O*NET OnLine summ
 
 ## What Pathfinder curates
 
-- The four student-facing role labels.
+- The student-facing role labels.
 - Normalised RIASEC and work-style target vectors used by the future matching engine.
 - Skills, five ordered milestones, practical tasks, portfolio projects, and resources.
 

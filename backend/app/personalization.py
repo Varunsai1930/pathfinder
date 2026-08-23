@@ -92,7 +92,11 @@ class FitExplanation(_StrictModel):
 
 
 class FitExplanationBatch(_StrictModel):
-    explanations: list[FitExplanation] = Field(min_length=4, max_length=4)
+    # Bounds mirror the catalog's role-count range (Catalog allows 4..12) so
+    # adding roles never silently kills this LLM surface. The exact count and
+    # role-id coverage are enforced against the supplied recommendations in
+    # personalize_match_response.
+    explanations: list[FitExplanation] = Field(min_length=4, max_length=12)
 
 
 class WeeklyFocus(_StrictModel):
@@ -677,7 +681,7 @@ class IntakeResponse(_StrictModel):
     timeline_weeks_suggestion: int | None = None
     career_certainty_suggestion: CareerCertainty | None = None
     generation_mode: str = "fallback"
-    # "unsupported_goal" when the stated goal lies outside the four supported
+    # "unsupported_goal" when the stated goal lies outside the supported
     # paths and was declined; empty string for every other outcome.
     decline_reason: str = ""
 
@@ -734,8 +738,8 @@ def generate_intake_prefill(goal_text: str, settings: Settings) -> IntakeRespons
     if generated.supported_path == "none":
         # Decline unsupported goals: no pre-filled draft, no derived hints —
         # nothing is force-fit or fabricated. The client shows a specific
-        # message naming the four supported paths instead of the generic one.
-        logger.info("Intake goal lies outside the four supported paths; declining pre-fill")
+        # message naming the supported paths instead of the generic one.
+        logger.info("Intake goal lies outside the supported paths; declining pre-fill")
         return IntakeResponse(generation_mode="fallback", decline_reason="unsupported_goal")
 
     known_skill_ids = {skill.id for skill in assessment.skills}

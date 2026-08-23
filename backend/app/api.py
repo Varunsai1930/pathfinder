@@ -56,10 +56,10 @@ def match_career_paths(
     user_id: str = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> MatchResponse:
-    """Rank Pathfinder's four supported roles using the user's persisted profile.
+    """Rank Pathfinder's supported roles using the user's persisted profile.
 
     Reads the calling user's saved assessment, runs it through the
-    deterministic matching engine, and returns four ranked score breakdowns.
+    deterministic matching engine, and returns a ranked score breakdown per role.
     The result is persisted (best-effort) stamped with the profile version it
     was computed from, so GET /match can serve it without recomputation.
     Returns 404 if the user has not submitted a profile yet.

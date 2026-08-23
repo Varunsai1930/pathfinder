@@ -1,6 +1,13 @@
+import json
+from types import SimpleNamespace
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
+
+from app import personalization
 from app.auth import get_current_user
+from app.config import Settings, get_settings
 from app.main import app
 
 def _sample_payload() -> dict:
@@ -164,3 +171,85 @@ def test_match_result_stale_after_profile_resubmission(client: TestClient) -> No
     assert client.get("/api/v1/match").status_code == 200
     assert client.get("/api/v1/match").json() == recomputed.json()
 
+
+
+SIX_ROLE_IDS = [
+    "frontend-developer",
+    "backend-developer",
+    "data-analyst",
+    "cloud-devops-engineer",
+    "security-analyst",
+    "data-engineer",
+]
+
+
+@pytest.fixture()
+def configured_openrouter() -> Settings:
+    settings = Settings(openrouter_api_key="test-key")
+    app.dependency_overrides[get_settings] = lambda: settings
+    yield settings
+    app.dependency_overrides.pop(get_settings, None)
+
+
+def _mock_openrouter(monkeypatch: pytest.MonkeyPatch, result: str) -> None:
+    class FakeCompletions:
+        def create(self, **kwargs: Any) -> Any:
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content=result))]
+            )
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs: Any) -> None:
+            self.chat = SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setattr(personalization, "OpenAI", FakeOpenAI)
+
+
+def _explanations_for(role_ids: list[str]) -> list[dict[str, str]]:
+    return [
+        {
+            "role_id": role_id,
+            "fit_explanation": (
+                f"{role_id.replace('-', ' ').title()} aligns with your strongest interests. "
+                "Your confirmed skills give it a solid starting point."
+            ),
+        }
+        for role_id in role_ids
+    ]
+
+
+def test_match_llm_fit_explanations_cover_every_catalog_role(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, configured_openrouter: Settings
+) -> None:
+    """Regression: the FitExplanationBatch schema must accept one explanation
+    per recommendation for the full catalog size (a stale max_length=4 cap
+    silently forced every /match response onto the deterministic fallback)."""
+    _mock_openrouter(monkeypatch, json.dumps({"explanations": _explanations_for(SIX_ROLE_IDS)}))
+    client.post("/api/v1/profile", json=_sample_payload())
+
+    response = client.post("/api/v1/match")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generation_mode"] == "llm"
+    expected = {e["role_id"]: e["fit_explanation"] for e in _explanations_for(SIX_ROLE_IDS)}
+    for rec in body["recommendations"]:
+        assert rec["fit_explanation"] == expected[rec["role_id"]], rec["role_id"]
+
+
+def test_match_fit_explanations_fall_back_when_role_set_mismatches(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, configured_openrouter: Settings
+) -> None:
+    _mock_openrouter(
+        monkeypatch,
+        json.dumps({"explanations": _explanations_for(SIX_ROLE_IDS[:-1])}),
+    )
+    client.post("/api/v1/profile", json=_sample_payload())
+
+    response = client.post("/api/v1/match")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generation_mode"] == "fallback"
+    for rec in body["recommendations"]:
+        assert "aligns with your strongest interests" not in rec["fit_explanation"]

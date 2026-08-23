@@ -1,8 +1,8 @@
 # Pathfinder
 
-Career-path planning SaaS for tech students. Pathfinder maps a short interest-and-skills assessment onto four entry-level technology roles, shows a transparent fit breakdown, and produces a milestone-based learning roadmap.
+Career-path planning SaaS for tech students. Pathfinder maps a short interest-and-skills assessment onto six entry-level technology roles, shows a transparent fit breakdown, and produces a milestone-based learning roadmap.
 
-Supported roles: Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer.
+Supported roles: Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer, Security Analyst, Data Engineer.
 
 Repository: https://github.com/Varunsai1930/pathfinder
 
@@ -109,7 +109,8 @@ All of the following require a Supabase JWT in `Authorization: Bearer <token>`. 
 - `POST /api/v1/intake` — turn a free-text career goal into reviewable assessment pre-fill hints
 - `POST /api/v1/profile` — save assessment answers
 - `GET /api/v1/profile` — load the saved profile
-- `POST /api/v1/match` — rank the four roles from the saved profile
+- `POST /api/v1/match` — rank the roles from the saved profile and persist the result
+- `GET /api/v1/match` — load the persisted match result for the current profile version (404 when absent or stale)
 - `POST /api/v1/roadmaps/{role_id}` — create or refresh the selected role roadmap
 - `GET /api/v1/roadmaps/{role_id}` — load roadmap, milestones, and task state
 - `PATCH /api/v1/tasks/{task_id}` — toggle a task and return the next action
