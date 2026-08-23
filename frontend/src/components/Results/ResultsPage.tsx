@@ -183,7 +183,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
           </button>
           {onBackToHome && (
             <button type="button" className="btn-secondary" onClick={onBackToHome}>
-              Back to Overview
+              Back to Home
             </button>
           )}
         </div>
@@ -200,7 +200,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
       <nav className="assessment-top-nav">
         {onBackToHome ? (
           <button type="button" className="btn-back-link" onClick={onBackToHome}>
-            ← Back to Overview
+            ← Back to Home
           </button>
         ) : <div />}
         <span className="brand-badge">Pathfinder • Results</span>
@@ -313,7 +313,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
         )}
         {onBackToHome && (
           <button type="button" className="btn-primary" onClick={onBackToHome}>
-            Return to Overview
+            Return to Home
           </button>
         )}
       </footer>

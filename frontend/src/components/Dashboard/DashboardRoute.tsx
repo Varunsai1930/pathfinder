@@ -60,7 +60,7 @@ export function DashboardRoute() {
       roleTitle={state.roleTitle ?? catalogDetails?.roleTitle ?? roleId.replace(/-/g, ' ')}
       skillReadiness={state.skillReadiness}
       portfolioProject={catalogDetails?.portfolioProject}
-      onBackToResults={() => navigate('/results')}
+      onBackToHome={() => navigate('/')}
     />
   )
 }

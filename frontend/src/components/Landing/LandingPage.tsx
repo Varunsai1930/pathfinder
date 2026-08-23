@@ -157,7 +157,7 @@ export function LandingPage({
               </strong>
               <button
                 type="button"
-                className="btn-primary"
+                className="score-card-cta"
                 onClick={() => onOpenDashboard(topPath.role_id, topPath.role_title)}
               >
                 Go to my dashboard →

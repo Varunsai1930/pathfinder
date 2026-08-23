@@ -83,7 +83,7 @@ interface DashboardPageProps {
     brief: string
     evidenceOfReadiness: string[]
   }
-  onBackToResults: () => void
+  onBackToHome: () => void
 }
 
 function responseError(status: number, fallback: string, body: unknown): Error {
@@ -111,7 +111,7 @@ function nextActionFromPlan(weeklyPlan: RoadmapWeek[]): NextAction {
   }
 }
 
-export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProject, onBackToResults }: DashboardPageProps) {
+export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProject, onBackToHome }: DashboardPageProps) {
   const [roadmap, setRoadmap] = useState<RoadmapResponse | null>(null)
   const [nextAction, setNextAction] = useState<NextAction | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -360,8 +360,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
           <button type="button" className="btn-primary" onClick={() => void loadRoadmap()}>
             Retry
           </button>
-          <button type="button" className="btn-secondary" onClick={onBackToResults}>
-            Back to Results
+          <button type="button" className="btn-secondary" onClick={onBackToHome}>
+            Back to Home
           </button>
         </div>
       </div>
@@ -390,8 +390,8 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
   return (
     <div className="dashboard-container">
       <nav className="assessment-top-nav">
-        <button type="button" className="btn-back-link" onClick={onBackToResults}>
-          ← Back to Results
+        <button type="button" className="btn-back-link" onClick={onBackToHome}>
+          ← Back to Home
         </button>
         <span className="brand-badge">Pathfinder • Career Path</span>
       </nav>
