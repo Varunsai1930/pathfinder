@@ -55,6 +55,10 @@ class ProfilePayload(BaseModel):
     skill_confidence: dict[str, SkillConfidence] = Field(default_factory=dict)
     work_style_responses: WorkStyleResponses
     constraints: ProfileConstraints
+    # Free-text goal from the conversational intake; optional so manual
+    # assessment submissions (and older clients) stay valid. Absent keeps the
+    # previously stored goal; a non-empty value overwrites it.
+    goal_text: str | None = Field(default=None, max_length=2000)
 
 
 class ProfileResponse(BaseModel):
@@ -66,6 +70,7 @@ class ProfileResponse(BaseModel):
     skill_confidence: dict[str, SkillConfidence]
     work_style_responses: WorkStyleResponses
     constraints: ProfileConstraints
+    goal_text: str | None = None
 
 
 class ScoreBreakdown(BaseModel):
@@ -89,5 +94,5 @@ class CareerRecommendation(BaseModel):
 class MatchResponse(BaseModel):
     normalized_interest_profile: RiasecProfile
     normalized_work_style_profile: WorkStyleProfile
-    recommendations: list[CareerRecommendation] = Field(min_length=4, max_length=4)
+    recommendations: list[CareerRecommendation] = Field(min_length=4, max_length=12)
     generation_mode: str = "fallback"

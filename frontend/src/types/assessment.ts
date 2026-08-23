@@ -32,6 +32,8 @@ export interface AssessmentPayload {
     target_timeline_weeks: number
     career_certainty: CareerCertainty
   }
+  /** Free-text goal from the intake step; omitted keeps the stored goal. */
+  goal_text?: string
 }
 
 export interface IntakeResponse {
@@ -42,4 +44,6 @@ export interface IntakeResponse {
   timeline_weeks_suggestion: number | null
   career_certainty_suggestion: CareerCertainty | null
   generation_mode: 'llm' | 'fallback'
+  /** "unsupported_goal" when the stated goal was outside the six supported paths. */
+  decline_reason?: string
 }

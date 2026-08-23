@@ -39,6 +39,8 @@ In the Supabase SQL editor, run the migrations in order:
 2. `supabase/migrations/20260816000000_roadmaps.sql`
 3. `supabase/migrations/20260816010000_tasks.sql`
 4. `supabase/migrations/20260820000000_llm_personalization.sql`
+5. `supabase/migrations/20260822000000_task_telemetry.sql`
+6. `supabase/migrations/20260823000000_profile_goal_text.sql`
 
 Enable email OTP under Authentication → Providers → Email.
 

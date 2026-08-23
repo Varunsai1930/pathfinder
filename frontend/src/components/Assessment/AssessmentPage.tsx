@@ -351,10 +351,19 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         }
       })
 
+      const acknowledgeGoal = () => {
+        const trimmed = goalText.trim()
+        return trimmed.length > 90 ? `${trimmed.slice(0, 90)}…` : trimmed
+      }
+
       setIntakeNotice(
         data.generation_mode === 'llm'
           ? 'We drafted your assessment from your goal. Review and edit anything — you stay in control.'
-          : "We couldn't generate a draft just now, so the assessment starts empty. Fill it in as normal."
+          : data.decline_reason === 'unsupported_goal'
+            ? `Thanks for sharing — “${acknowledgeGoal()}”. That goal sits outside what Pathfinder covers today: ` +
+              'Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer, Security Analyst, and Data Engineer. ' +
+              'If one of these is close, edit your goal to mention it and pre-fill again — or fill the assessment in yourself below; nothing is scored until you submit.'
+            : "We couldn't generate a draft just now, so the assessment starts empty. Fill it in as normal."
       )
       setCurrentStep(2)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -384,6 +393,9 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         target_timeline_weeks: Number(assessmentState.constraints.target_timeline_weeks),
         career_certainty: assessmentState.constraints.career_certainty as CareerCertainty,
       },
+      // Persist the intake goal so the Q&A assistant can reference it; omitted
+      // (empty) keeps whatever goal was stored before.
+      ...(goalText.trim() ? { goal_text: goalText.trim() } : {}),
     }
 
     try {
@@ -524,7 +536,7 @@ export function AssessmentPage({ onBackToHome }: AssessmentPageProps) {
         <div className="loading-spinner" />
         <h3>Computing Your Career Matches…</h3>
         <p className="loading-subtext">
-          Analyzing your interests, skills, and work style against four focused career paths.
+          Analyzing your interests, skills, and work style against six focused career paths.
         </p>
       </div>
     )

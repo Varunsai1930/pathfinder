@@ -100,6 +100,10 @@ def upsert_profile(
             ),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        if payload.goal_text:
+            # Absent goal keeps the stored one (PostgREST merge leaves the
+            # column untouched when the key is omitted).
+            db_payload["goal_text"] = payload.goal_text
 
         try:
             with httpx.Client(timeout=10.0) as client:
@@ -123,13 +127,19 @@ def upsert_profile(
     else:
         # Local persistence only (tests / Supabase not configured); never mirror
         # production writes into memory, or a long-lived process grows unbounded.
-        _in_memory_profiles[user_id] = payload.model_dump()
+        previous = _in_memory_profiles.get(user_id, {})
+        _in_memory_profiles[user_id] = {
+            **payload.model_dump(),
+            "goal_text": payload.goal_text or previous.get("goal_text"),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     return ProfileResponse(
         interest_responses=payload.interest_responses,
         skill_confidence=payload.skill_confidence,
         work_style_responses=payload.work_style_responses,
         constraints=payload.constraints,
+        goal_text=payload.goal_text or (_in_memory_profiles.get(user_id, {}).get("goal_text")),
     )
 
 
@@ -168,6 +178,7 @@ def get_profile(
                         target_timeline_weeks=row.get("target_timeline_weeks"),
                         career_certainty=CareerCertainty(row.get("career_certainty")),
                     ),
+                    goal_text=row.get("goal_text"),
                 )
             elif resp.status_code == 404:
                 raise HTTPException(
@@ -197,6 +208,41 @@ def get_profile(
     return ProfileResponse(
         interest_responses=stored["interest_responses"],
         skill_confidence=stored["skill_confidence"],
-        work_style_responses=WorkStyleResponses(**stored["work_style_responses"]),
-        constraints=ProfileConstraints(**stored["constraints"]),
+        work_style_responses=WorkStyleResponses(**(stored["work_style_responses"])),
+        constraints=ProfileConstraints(**(stored["constraints"])),
+        goal_text=stored.get("goal_text"),
     )
+
+
+def get_profile_updated_at(user_id: str, settings: Settings) -> str | None:
+    """Return the profile row's updated_at — the version stamp for cached results.
+
+    Callers pair this with the value stored alongside a persisted match to
+    detect whether the profile changed since that match was computed. Returns
+    None when no profile row exists; callers surface 404 via get_profile.
+    """
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
+        base_url = _sanitize_supabase_url(settings.supabase_url)
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(
+                    f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}&select=updated_at",
+                    headers=_get_postgrest_headers(settings),
+                )
+        except httpx.RequestError as exc:
+            logger.error("Supabase connection error: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection error.",
+            )
+        if resp.status_code != 200:
+            logger.error("Supabase get failed with status %d: %s", resp.status_code, resp.text)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error while fetching profile: {resp.text}",
+            )
+        rows = resp.json()
+        return rows[0].get("updated_at") if rows else None
+
+    stored = _in_memory_profiles.get(user_id)
+    return stored.get("updated_at") if stored else None

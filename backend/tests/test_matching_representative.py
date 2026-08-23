@@ -86,6 +86,31 @@ CLOUD_DEVOPS_PROFILE = _build_profile(
 )
 
 
+DATA_ENGINEER_PROFILE = _build_profile(
+    interest_emphasis={"conventional": 5, "investigative": 4, "realistic": 4, "artistic": 1, "social": 2, "enterprising": 2},
+    skills={
+        "sql": SkillConfidence.PRACTISED,
+        "python": SkillConfidence.PRACTISED,
+        "linux": SkillConfidence.AWARE,
+        "containers": SkillConfidence.AWARE,
+        "git": SkillConfidence.PRACTISED,
+    },
+    work_style=WorkStyleResponses(analytical=5, creative=2, collaborative=3, structured=5, systems_oriented=5),
+)
+
+SECURITY_PROFILE = _build_profile(
+    interest_emphasis={"investigative": 5, "realistic": 4, "conventional": 4, "artistic": 1, "social": 2, "enterprising": 2},
+    skills={
+        "linux": SkillConfidence.PRACTISED,
+        "python": SkillConfidence.PRACTISED,
+        "authentication": SkillConfidence.AWARE,
+        "monitoring": SkillConfidence.AWARE,
+        "containers": SkillConfidence.AWARE,
+    },
+    work_style=WorkStyleResponses(analytical=5, creative=3, collaborative=3, structured=4, systems_oriented=5),
+)
+
+
 @pytest.mark.parametrize(
     "profile, expected_top_role",
     [
@@ -93,8 +118,10 @@ CLOUD_DEVOPS_PROFILE = _build_profile(
         (BACKEND_PROFILE, "backend-developer"),
         (DATA_ANALYST_PROFILE, "data-analyst"),
         (CLOUD_DEVOPS_PROFILE, "cloud-devops-engineer"),
+        (SECURITY_PROFILE, "security-analyst"),
+        (DATA_ENGINEER_PROFILE, "data-engineer"),
     ],
-    ids=["frontend", "backend", "data-analyst", "cloud-devops"],
+    ids=["frontend", "backend", "data-analyst", "cloud-devops", "security", "data-engineer"],
 )
 def test_representative_profile_ranks_intended_role_first(
     profile: MatchProfile, expected_top_role: str
@@ -115,8 +142,8 @@ def test_representative_profile_ranks_intended_role_first(
 
 @pytest.mark.parametrize(
     "profile",
-    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE],
-    ids=["frontend", "backend", "data-analyst", "cloud-devops"],
+    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE, SECURITY_PROFILE, DATA_ENGINEER_PROFILE],
+    ids=["frontend", "backend", "data-analyst", "cloud-devops", "security", "data-engineer"],
 )
 def test_score_breakdown_reconstructs_total(profile: MatchProfile) -> None:
     """0.55 * interest + 0.35 * skill + 0.10 * work_style must equal the total fit score."""
@@ -133,8 +160,8 @@ def test_score_breakdown_reconstructs_total(profile: MatchProfile) -> None:
 
 @pytest.mark.parametrize(
     "profile",
-    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE],
-    ids=["frontend", "backend", "data-analyst", "cloud-devops"],
+    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE, SECURITY_PROFILE, DATA_ENGINEER_PROFILE],
+    ids=["frontend", "backend", "data-analyst", "cloud-devops", "security", "data-engineer"],
 )
 def test_confirmed_and_missing_skills_have_zero_overlap(profile: MatchProfile) -> None:
     """A skill cannot be both confirmed and missing for the same role."""

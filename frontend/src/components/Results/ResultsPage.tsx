@@ -53,6 +53,8 @@ const ROLE_ICONS: Record<string, string> = {
   'backend-developer': '⚙️',
   'data-analyst': '📊',
   'cloud-devops-engineer': '☁️',
+  'data-engineer': '🗄️',
+  'security-analyst': '🛡️',
 }
 
 /* ------------------------------------------------------------------ */
@@ -64,20 +66,35 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
   const [isLoading, setIsLoading] = useState(!preloaded)
   const [error, setError] = useState<string | null>(null)
 
+  const getAuthToken = async (): Promise<string> => {
+    if (!supabase) {
+      throw new Error('Supabase client is not configured.')
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) throw new Error(`Auth error: ${sessionError.message}`)
+
+    const token = sessionData?.session?.access_token
+    if (!token) throw new Error('You must be signed in to view results.')
+    return token
+  }
+
+  const detailFromResponse = async (res: Response, fallback: string): Promise<string> => {
+    let detail = fallback
+    try {
+      const body = await res.json()
+      if (body?.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
+    } catch { /* response was not JSON */ }
+    return detail
+  }
+
+  /** Compute a fresh match (POST) — used on first visit and by the Retry button. */
   const fetchMatch = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      if (!supabase) {
-        throw new Error('Supabase client is not configured.')
-      }
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) throw new Error(`Auth error: ${sessionError.message}`)
-
-      const token = sessionData?.session?.access_token
-      if (!token) throw new Error('You must be signed in to view results.')
+      const token = await getAuthToken()
 
       const res = await fetch(`${config.apiUrl}/api/v1/match`, {
         method: 'POST',
@@ -88,12 +105,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
       })
 
       if (!res.ok) {
-        let detail = `Matching failed (${res.status})`
-        try {
-          const body = await res.json()
-          if (body?.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
-        } catch { /* ignore */ }
-        throw new Error(detail)
+        throw new Error(await detailFromResponse(res, `Matching failed (${res.status})`))
       }
 
       const data: MatchResponse = await res.json()
@@ -105,9 +117,41 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
     }
   }
 
+  /**
+   * Mount path: load the persisted match first; only POST (compute) when the
+   * backend has no fresh result for the current profile version. Navigating
+   * back to this page must never silently recompute scores.
+   */
+  const loadMatch = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const token = await getAuthToken()
+
+      const cached = await fetch(`${config.apiUrl}/api/v1/match`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (cached.ok) {
+        setMatchData((await cached.json()) as MatchResponse)
+        setIsLoading(false)
+        return
+      }
+      if (cached.status !== 404) {
+        throw new Error(await detailFromResponse(cached, `Failed to load results (${cached.status})`))
+      }
+      // 404: no persisted result for this profile version — compute once.
+      await fetchMatch()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error while loading results.')
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!preloaded) {
-      fetchMatch()
+      loadMatch()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -119,7 +163,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
         <div className="loading-spinner" />
         <h3>Computing Your Career Matches…</h3>
         <p className="loading-subtext">
-          Analyzing your interests, skills, and work style against four focused career paths.
+          Analyzing your interests, skills, and work style against six focused career paths.
         </p>
       </div>
     )

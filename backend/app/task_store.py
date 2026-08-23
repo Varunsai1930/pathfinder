@@ -135,6 +135,8 @@ def _apply_feedback_skill_promotion(
                 upgraded.append(sid)
         if upgraded:
             stored["skill_confidence"] = sc
+            # Profile content changed: invalidate version-stamped caches (match results).
+            stored["updated_at"] = datetime.now(timezone.utc).isoformat()
         # Build snapshot for UI — recompute implied readiness increment
         return {
             "upgraded_skills": upgraded,
@@ -166,7 +168,11 @@ def _apply_feedback_skill_promotion(
                 patch = client.patch(
                     f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}",
                     headers={**headers, "Content-Type": "application/json", "Prefer": "return=minimal"},
-                    json={"skill_confidence": sc},
+                    json={
+                        "skill_confidence": sc,
+                        # Profile content changed: invalidate version-stamped caches.
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
                 if patch.status_code not in (200, 204):
                     logger.warning("Feedback skill promotion patch failed %s", patch.text)

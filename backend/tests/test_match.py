@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from app.auth import get_current_user
 from app.main import app
@@ -38,7 +39,7 @@ def test_match_authenticated_roundtrip(client: TestClient) -> None:
     assert "recommendations" in data
     
     recs = data["recommendations"]
-    assert len(recs) == 4
+    assert len(recs) == 6
     
     for rank, rec in enumerate(recs, start=1):
         assert rec["rank"] == rank
@@ -82,7 +83,7 @@ def test_match_skills_have_zero_overlap_all_roles(client: TestClient) -> None:
 
     assert response.status_code == 200
     recs = response.json()["recommendations"]
-    assert len(recs) == 4
+    assert len(recs) == 6
 
     for rec in recs:
         confirmed = set(rec["confirmed_skills"])
@@ -111,4 +112,55 @@ def test_match_no_profile_returns_404(client: TestClient) -> None:
     response = client.post("/api/v1/match")
     assert response.status_code == 404
     assert "not found" in response.json().get("detail", "").lower()
+
+
+def test_match_get_404_without_profile(client: TestClient) -> None:
+    response = client.get("/api/v1/match")
+    assert response.status_code == 404
+    assert "not found" in response.json().get("detail", "").lower()
+
+
+def test_match_get_404_when_never_computed(client: TestClient) -> None:
+    client.post("/api/v1/profile", json=_sample_payload())
+
+    response = client.get("/api/v1/match")
+
+    assert response.status_code == 404
+
+
+def test_match_get_serves_persisted_result_without_recompute(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client.post("/api/v1/profile", json=_sample_payload())
+    computed = client.post("/api/v1/match")
+    assert computed.status_code == 200
+
+    # Any recompute attempt fails loudly, proving GET serves the persisted result.
+    def _boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("match recomputed on GET")
+
+    monkeypatch.setattr("app.api.match_profile", _boom)
+
+    response = client.get("/api/v1/match")
+
+    assert response.status_code == 200
+    assert response.json() == computed.json()
+
+
+def test_match_result_stale_after_profile_resubmission(client: TestClient) -> None:
+    client.post("/api/v1/profile", json=_sample_payload())
+    client.post("/api/v1/match")
+    assert client.get("/api/v1/match").status_code == 200
+
+    resubmitted = _sample_payload()
+    resubmitted["constraints"]["hours_per_week"] = 20
+    client.post("/api/v1/profile", json=resubmitted)
+
+    # Profile version changed: the old result must no longer be served.
+    assert client.get("/api/v1/match").status_code == 404
+
+    recomputed = client.post("/api/v1/match")
+    assert recomputed.status_code == 200
+    assert client.get("/api/v1/match").status_code == 200
+    assert client.get("/api/v1/match").json() == recomputed.json()
 

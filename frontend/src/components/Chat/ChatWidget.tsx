@@ -6,14 +6,14 @@ interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   text: string
-  generationMode?: 'fallback' | 'llm'
+  generationMode?: 'fallback' | 'llm' | 'conversational'
   isError?: boolean
   pending?: boolean
 }
 
 interface AskQuestionResponse {
   answer: string
-  generation_mode: 'fallback' | 'llm'
+  generation_mode: 'fallback' | 'llm' | 'conversational'
 }
 
 export function ChatWidget() {

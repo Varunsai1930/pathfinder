@@ -80,6 +80,11 @@ function App() {
               onStart={() => navigate(userEmail ? '/assessment' : '/signup')}
               onSignOut={handleSignOut}
               onAskQuestions={() => navigate('/questions')}
+              onOpenDashboard={(roleId, roleTitle) => {
+                navigate(`/dashboard/${roleId}`, { state: { roleTitle } })
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              onViewResults={() => navigate('/results')}
             />
           }
         />

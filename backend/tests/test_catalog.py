@@ -2,7 +2,7 @@ from app.catalog.assessment_loader import get_assessment_catalog
 from app.catalog.loader import get_catalog
 
 
-def test_catalog_has_exactly_four_supported_roles() -> None:
+def test_catalog_lists_the_six_supported_roles() -> None:
     catalog = get_catalog()
 
     assert catalog.schema_version == "1.0.0"
@@ -11,6 +11,8 @@ def test_catalog_has_exactly_four_supported_roles() -> None:
         "backend-developer",
         "data-analyst",
         "cloud-devops-engineer",
+        "security-analyst",
+        "data-engineer",
     ]
 
 
@@ -36,6 +38,8 @@ def test_role_references_match_the_intended_student_paths() -> None:
     assert roles["backend-developer"].grounding.occupation_title == "Software Developers"
     assert roles["data-analyst"].grounding.occupation_title == "Business Intelligence Analysts"
     assert roles["cloud-devops-engineer"].grounding.occupation_title == "Network and Computer Systems Administrators"
+    assert roles["data-engineer"].grounding.occupation_title == "Database Architects"
+    assert roles["security-analyst"].grounding.occupation_title == "Information Security Analysts"
 
 
 def test_assessment_has_eighteen_original_interest_questions() -> None:

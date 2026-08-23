@@ -1,9 +1,21 @@
+import { useEffect, useState } from 'react'
+import { config } from '../../lib/config'
+import { supabase } from '../../lib/supabase'
+
+interface TopPath {
+  role_id: string
+  role_title: string
+  fit: number
+}
+
 interface LandingPageProps {
   userEmail: string | null
   onSignIn: () => void
   onStart: () => void
   onSignOut: () => void
   onAskQuestions: () => void
+  onOpenDashboard: (roleId: string, roleTitle?: string) => void
+  onViewResults: () => void
 }
 
 const roles = [
@@ -11,9 +23,67 @@ const roles = [
   ['Backend Developer', 'Design the systems and APIs behind products.'],
   ['Data Analyst', 'Turn data into insights and confident decisions.'],
   ['Cloud/DevOps Engineer', 'Automate delivery and run reliable infrastructure.'],
+  ['Data Engineer', 'Build the pipelines that move, model, and trust data.'],
+  ['Security Analyst', 'Find weaknesses early and defend what you ship.'],
 ]
 
-export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQuestions }: LandingPageProps) {
+/** Load the signed-in user's real top path (persisted match first) for the
+ *  welcome-back card; silently keeps the example card when none exists. */
+function useTopPath(userEmail: string | null): TopPath | null {
+  const [topPath, setTopPath] = useState<TopPath | null>(null)
+
+  useEffect(() => {
+    if (!userEmail || !supabase) return
+    const client = supabase
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const { data: sessionData } = await client.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (!token) return
+        const headers = { Authorization: `Bearer ${token}` }
+
+        let res = await fetch(`${config.apiUrl}/api/v1/match`, { headers })
+        if (res.status === 404) {
+          // No fresh persisted result: compute once only if a profile exists.
+          const profileRes = await fetch(`${config.apiUrl}/api/v1/profile`, { headers })
+          if (profileRes.status === 404) return
+          res = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })
+        }
+        if (!res.ok) return
+        const data = await res.json()
+        const top = data.recommendations?.[0]
+        if (!cancelled && top) {
+          setTopPath({
+            role_id: top.role_id,
+            role_title: top.role_title,
+            fit: Math.round(top.pathfinder_fit_score),
+          })
+        }
+      } catch {
+        // Landing stays on the example card — never block the page on this.
+      }
+    }
+
+    void load()
+    return () => { cancelled = true }
+  }, [userEmail])
+
+  return topPath
+}
+
+export function LandingPage({
+  userEmail,
+  onSignIn,
+  onStart,
+  onSignOut,
+  onAskQuestions,
+  onOpenDashboard,
+  onViewResults,
+}: LandingPageProps) {
+  const topPath = useTopPath(userEmail)
+
   return (
     <main>
       <nav className="nav" aria-label="Primary navigation">
@@ -22,11 +92,6 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
         </a>
         <a href="#how-it-works">How it works</a>
         <a href="#paths">Career paths</a>
-        {userEmail ? (
-          <button type="button" className="nav-qa-btn" onClick={onAskQuestions}>
-            Q&A
-          </button>
-        ) : null}
         <div className="nav-auth">
           {userEmail ? (
             <span className="nav-user-email">{userEmail}</span>
@@ -47,13 +112,28 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
           <p className="lede">
             Every other tool tells you what to learn. Pathfinder shows you the math, then explains
             it in plain language — describe your goal in your own words, get a transparent fit
-            score for four tech careers, and follow a plan you can audit.
+            score for six tech careers, and follow a plan you can audit.
           </p>
 
           <div className="hero-cta-group">
-            <button type="button" className="btn-hero-primary" onClick={onStart}>
-              {userEmail ? 'Start Free Assessment →' : 'Sign up to Start →'}
-            </button>
+            {topPath ? (
+              <>
+                <button
+                  type="button"
+                  className="btn-hero-primary"
+                  onClick={() => onOpenDashboard(topPath.role_id, topPath.role_title)}
+                >
+                  Continue my path — {topPath.role_title} →
+                </button>
+                <button type="button" className="btn-ghost" onClick={onViewResults}>
+                  View my results
+                </button>
+              </>
+            ) : (
+              <button type="button" className="btn-hero-primary" onClick={onStart}>
+                {userEmail ? 'Start Free Assessment →' : 'Sign up to Start →'}
+              </button>
+            )}
           </div>
 
           {userEmail ? (
@@ -67,26 +147,46 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
         </div>
 
         <aside className="score-card" aria-label="Example PathFinder score">
-          <p>YOUR TOP PATH</p>
-          <h2>Data Analyst</h2>
-          <strong>
-            82 <small>fit score</small>
-          </strong>
-          <ul>
-            <li>
-              <span>Interest alignment</span>
-              <b>90</b>
-            </li>
-            <li>
-              <span>Current skill readiness</span>
-              <b>71</b>
-            </li>
-            <li>
-              <span>Work-style alignment</span>
-              <b>84</b>
-            </li>
-          </ul>
-          <footer>Understand the why, then take the next step.</footer>
+          {topPath ? (
+            <>
+              <p>YOUR TOP PATH</p>
+              <h2>{topPath.role_title}</h2>
+              <strong>
+                {topPath.fit} <small>fit score</small>
+              </strong>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => onOpenDashboard(topPath.role_id, topPath.role_title)}
+              >
+                Go to my dashboard →
+              </button>
+              <footer>Pick up your milestones right where you left them.</footer>
+            </>
+          ) : (
+            <>
+              <p>YOUR TOP PATH</p>
+              <h2>Data Analyst</h2>
+              <strong>
+                82 <small>fit score</small>
+              </strong>
+              <ul>
+                <li>
+                  <span>Interest alignment</span>
+                  <b>90</b>
+                </li>
+                <li>
+                  <span>Current skill readiness</span>
+                  <b>71</b>
+                </li>
+                <li>
+                  <span>Work-style alignment</span>
+                  <b>84</b>
+                </li>
+              </ul>
+              <footer>Understand the why, then take the next step.</footer>
+            </>
+          )}
         </aside>
       </section>
 
@@ -101,7 +201,7 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
           <article>
             <b>02</b>
             <h2>Compare career fits</h2>
-            <p>See how four focused tech careers align with your profile—and where the gaps are.</p>
+            <p>See how six focused tech careers align with your profile—and where the gaps are.</p>
           </article>
           <article>
             <b>03</b>
@@ -112,7 +212,7 @@ export function LandingPage({ userEmail, onSignIn, onStart, onSignOut, onAskQues
       </section>
 
       <section className="paths" id="paths">
-        <p className="eyebrow">FOUR FOCUSED PATHS</p>
+        <p className="eyebrow">SIX FOCUSED PATHS</p>
         <h2>Start broad enough to explore, focused enough to act.</h2>
         <div className="role-grid">
           {roles.map(([title, description]) => (

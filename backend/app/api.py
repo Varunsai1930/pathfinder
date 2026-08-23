@@ -14,6 +14,7 @@ from app.matching.models import (
     ProfileResponse,
 )
 from app.matching.service import match_profile
+from app.match_store import load_match_result, persist_match_result
 from app.personalization import (
     AskQuestionPayload,
     AskQuestionResponse,
@@ -23,7 +24,7 @@ from app.personalization import (
     generate_intake_prefill,
     personalize_match_response,
 )
-from app.profile_store import get_profile, upsert_profile
+from app.profile_store import get_profile, get_profile_updated_at, upsert_profile
 from app.roadmap_models import RoadmapResponse
 from app.roadmap_store import get_roadmap, upsert_roadmap
 from app.task_models import TaskCompletionPayload, TaskUpdateResponse
@@ -59,16 +60,47 @@ def match_career_paths(
 
     Reads the calling user's saved assessment, runs it through the
     deterministic matching engine, and returns four ranked score breakdowns.
+    The result is persisted (best-effort) stamped with the profile version it
+    was computed from, so GET /match can serve it without recomputation.
     Returns 404 if the user has not submitted a profile yet.
     """
     stored = get_profile(user_id=user_id, settings=settings)
+    profile_updated_at = get_profile_updated_at(user_id=user_id, settings=settings)
     profile = MatchProfile(
         interest_responses=stored.interest_responses,
         skill_confidence=stored.skill_confidence,
         work_style_responses=stored.work_style_responses,
     )
     deterministic_match = match_profile(profile)
-    return personalize_match_response(deterministic_match, stored.constraints, settings)
+    response = personalize_match_response(deterministic_match, stored.constraints, settings)
+    persist_match_result(user_id, response, profile_updated_at, settings)
+    return response
+
+
+@router.get("/match", response_model=MatchResponse, tags=["matching"])
+def latest_match(
+    user_id: str = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> MatchResponse:
+    """Serve the persisted match result for the current profile version.
+
+    Returns 404 when no match has been computed yet or the profile changed
+    since the last computation (reassessment, feedback-loop skill promotion).
+    Clients should respond to the 404 by POSTing /match once — never
+    recompute silently on navigation.
+    """
+    get_profile(user_id=user_id, settings=settings)
+    cached = load_match_result(
+        user_id=user_id,
+        profile_updated_at=get_profile_updated_at(user_id=user_id, settings=settings),
+        settings=settings,
+    )
+    if cached is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No match result for the current profile version. Compute it with POST /match.",
+        )
+    return cached
 
 
 @router.post("/intake", response_model=IntakeResponse, tags=["intake"])
@@ -156,7 +188,7 @@ def ask_about_results(
         except HTTPException as exc:
             if exc.status_code != status.HTTP_404_NOT_FOUND:
                 raise
-    return answer_grounded_question(payload, deterministic_match, roadmap, settings)
+    return answer_grounded_question(payload, deterministic_match, roadmap, settings, goal_text=stored.goal_text)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskUpdateResponse, tags=["tasks"])

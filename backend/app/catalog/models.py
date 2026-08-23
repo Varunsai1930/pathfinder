@@ -158,7 +158,7 @@ class RoleDefinition(BaseModel):
 
 class Catalog(BaseModel):
     schema_version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
-    roles: list[RoleDefinition] = Field(min_length=4, max_length=4)
+    roles: list[RoleDefinition] = Field(min_length=4, max_length=12)
 
     @field_validator("roles")
     @classmethod

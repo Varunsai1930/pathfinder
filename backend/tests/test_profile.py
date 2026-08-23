@@ -83,21 +83,22 @@ def test_profile_not_found_returns_clean_404(client: TestClient) -> None:
 def test_profile_authenticated_roundtrip(client: TestClient) -> None:
     """POST /profile then GET /profile returns exact persisted profile payload."""
     payload = _sample_payload(hours=20, certainty="committed")
+    expected = {**payload, "goal_text": None}
 
     # POST /profile
     post_res = client.post("/api/v1/profile", json=payload)
     assert post_res.status_code == 200
-    assert post_res.json() == payload
+    assert post_res.json() == expected
 
     # GET /profile returns the exact same payload
     get_res = client.get("/api/v1/profile")
     assert get_res.status_code == 200
-    assert get_res.json() == payload
+    assert get_res.json() == expected
 
     # Direct root path also returns identical payload
     get_root = client.get("/profile")
     assert get_root.status_code == 200
-    assert get_root.json() == payload
+    assert get_root.json() == expected
 
 
 def test_profile_resubmission_overwrites_existing_record(client: TestClient) -> None:

@@ -71,3 +71,87 @@ def test_task_cross_user_patch_is_rejected(client: TestClient) -> None:
 def test_task_patch_validates_body(client: TestClient) -> None:
     task_id = _create_task_ids(client)[0]
     assert client.patch(f"/api/v1/tasks/{task_id}", json={}).status_code == 422
+
+
+def test_task_patch_persists_telemetry_both_fields_set(client: TestClient) -> None:
+    task_ids = _create_task_ids(client)
+
+    response = client.patch(
+        f"/api/v1/tasks/{task_ids[0]}",
+        json={"completed": True, "time_spent_minutes": 45, "quiz_score": 40},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["time_spent_minutes"] == 45
+    assert body["task"]["quiz_score"] == 40
+    assert body["task"]["completed"] is True
+
+    summary = body["telemetry_summary"]
+    assert summary["completed_count"] == 1
+    assert summary["total_count"] == 5
+    assert summary["completion_rate"] == 20.0
+    assert summary["avg_time_spent_minutes"] == 45.0
+    assert summary["avg_quiz_score"] == 40.0
+    assert summary["pace_note"].startswith("Fast pace")
+
+    # Low quiz average steers the next-action hint toward review.
+    assert "review fundamentals before advancing" in body["next_action"]["message"]
+
+    # A second completed milestone without telemetry leaves averages on the
+    # tasks that did report values.
+    second = client.patch(f"/api/v1/tasks/{task_ids[1]}", json={"completed": True})
+    assert second.status_code == 200
+    second_summary = second.json()["telemetry_summary"]
+    assert second_summary["completed_count"] == 2
+    assert second_summary["avg_time_spent_minutes"] == 45.0
+    assert second_summary["avg_quiz_score"] == 40.0
+
+    # The roadmap read path surfaces telemetry on the weekly plan items.
+    roadmap = client.get(f"/api/v1/roadmaps/{ROLE_ID}")
+    assert roadmap.status_code == 200
+    first_week = next(
+        item for item in roadmap.json()["weekly_plan"] if item["task_id"] == task_ids[0]
+    )
+    assert first_week["completed"] is True
+    assert first_week["time_spent_minutes"] == 45
+    assert first_week["quiz_score"] == 40
+
+
+def test_task_patch_without_telemetry_keeps_fields_absent(client: TestClient) -> None:
+    task_ids = _create_task_ids(client)
+
+    response = client.patch(f"/api/v1/tasks/{task_ids[0]}", json={"completed": True})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["completed"] is True
+    assert body["task"]["time_spent_minutes"] is None
+    assert body["task"]["quiz_score"] is None
+
+    summary = body["telemetry_summary"]
+    assert summary["completed_count"] == 1
+    assert summary["avg_time_spent_minutes"] is None
+    assert summary["avg_quiz_score"] is None
+    assert summary["pace_note"] == ""
+
+    # No telemetry means no adaptive suffix on the next-action message.
+    assert body["next_action"]["message"] == "Next: Interactive JavaScript"
+
+
+def test_task_patch_telemetry_range_validation(client: TestClient) -> None:
+    task_id = _create_task_ids(client)[0]
+
+    for payload in (
+        {"completed": True, "time_spent_minutes": 10081},
+        {"completed": True, "time_spent_minutes": -1},
+        {"completed": True, "quiz_score": 101},
+        {"completed": True, "quiz_score": -5},
+    ):
+        assert client.patch(f"/api/v1/tasks/{task_id}", json=payload).status_code == 422
+
+    for payload in (
+        {"completed": True, "time_spent_minutes": 0, "quiz_score": 0},
+        {"completed": True, "time_spent_minutes": 10080, "quiz_score": 100},
+    ):
+        accepted = client.patch(f"/api/v1/tasks/{task_id}", json=payload)
+        assert accepted.status_code == 200
+        assert accepted.json()["task"]["completed"] is True

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 
 interface QuestionResponse {
   answer: string
-  generation_mode: 'fallback' | 'llm'
+  generation_mode: 'fallback' | 'llm' | 'conversational'
 }
 
 interface AskAboutResultsProps {
@@ -82,7 +82,13 @@ export function AskAboutResults({ roleId }: AskAboutResultsProps) {
         <div className="ask-results-answer" role="status" aria-live="polite">
           <span>PATHFINDER ANSWER</span>
           <p>{answer.answer}</p>
-          <small>{answer.generation_mode === 'llm' ? 'Personalized from your data' : 'Grounded Pathfinder guidance'}</small>
+          <small>
+            {answer.generation_mode === 'llm'
+              ? 'Personalized from your data'
+              : answer.generation_mode === 'conversational'
+                ? 'Pathfinder chat'
+                : 'Grounded Pathfinder guidance'}
+          </small>
         </div>
       )}
     </section>
