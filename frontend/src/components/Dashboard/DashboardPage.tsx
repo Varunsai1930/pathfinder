@@ -447,7 +447,7 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
             <p className="eyebrow">Skill development</p>
             <h2 id="skill-development-title">Where you stand for {roleTitle}</h2>
             <p className="skill-development-lede">
-              Derived from your saved assessment (POST /match + GET /roadmaps/{roleId}) — no new backend call. Use the milestone checklist below to build evidence for the to-develop skills.
+              Derived from your assessment. Use the milestone checklist below to build evidence for the to-develop skills.
             </p>
           </div>
           <span className="skill-development-badge">From your match</span>
@@ -526,7 +526,7 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
             <p className="eyebrow">Recommended courses</p>
             <h2 id="recommended-courses-title">Courses for your gaps</h2>
             <p className="recommended-courses-lede">
-              Curated from <code>GET /api/v1/catalog/courses</code> (grounded course catalog, {courses.length} courses). Filtered to your missing skills for {roleTitle} — prerequisites show the structured path.
+              Curated for you from the Pathfinder Library and Resources — filtered to your missing skills for {roleTitle}, with prerequisites showing the structured path.
             </p>
           </div>
           <span className="recommended-courses-badge">{coursesLoading ? '…' : `${courses.length} in catalog`}</span>

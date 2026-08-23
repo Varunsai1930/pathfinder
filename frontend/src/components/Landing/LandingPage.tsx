@@ -161,7 +161,7 @@ export function LandingPage({
                 className="score-card-cta"
                 onClick={() => onOpenDashboard(topPath.role_id, topPath.role_title)}
               >
-                Go to my dashboard →
+                Track my progress →
               </button>
             </>
           ) : (
