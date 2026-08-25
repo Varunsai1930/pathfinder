@@ -1011,6 +1011,11 @@
               "title": "Kimball Group Articles",
               "url": "https://www.kimballgroup.com/articles/",
               "provider": "Kimball Group"
+            },
+            {
+              "title": "Understand star schema and the importance for Power BI",
+              "url": "https://learn.microsoft.com/en-us/power-bi/guidance/star-schema",
+              "provider": "Microsoft Learn"
             }
           ]
         },
@@ -1031,6 +1036,11 @@
               "title": "Docker Documentation",
               "url": "https://docs.docker.com/",
               "provider": "Docker"
+            },
+            {
+              "title": "Play with Docker Classroom",
+              "url": "https://training.play-with-docker.com/",
+              "provider": "Play with Docker"
             }
           ]
         },

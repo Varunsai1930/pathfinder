@@ -6,7 +6,7 @@ catches the old Euclidean-distance bug where a user who rates everything ~70
 would get different rankings than one who rates everything ~30.
 
 Note: a flat user vector will NOT have identical similarity to every role,
-because the four role vectors point in genuinely different directions.  That
+because the role vectors point in genuinely different directions.  That
 directional difference is correct — the invariance guarantee is that the
 scores don't change when the user's *magnitude* changes but the *direction*
 stays flat.
@@ -60,7 +60,7 @@ def test_flat_profiles_at_different_magnitudes_produce_the_same_ranking() -> Non
 
 
 def test_flat_profile_interest_scores_are_close_across_roles() -> None:
-    """At each magnitude, the spread across four roles should be small (< 5 points).
+    """At each magnitude, the spread across all roles should be small (< 5 points).
 
     A perfectly flat user vector has a slightly different angle to each
     non-flat role vector, so the scores are not identical — but they should

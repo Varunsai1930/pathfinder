@@ -12,12 +12,16 @@ Each path points to a closest O*NET occupation and its current O*NET OnLine summ
 | Backend Developer | Software Developers (`15-1252.00`) |
 | Data Analyst | Business Intelligence Analysts (`15-2051.01`) |
 | Cloud/DevOps Engineer | Network and Computer Systems Administrators (`15-1244.00`) |
+| Security Analyst | Information Security Analysts (`15-1212.00`) |
+| Data Engineer | Database Architects (`15-1243.00`) |
 
 ## What Pathfinder curates
 
 - The student-facing role labels.
 - Normalised RIASEC and work-style target vectors used by the future matching engine.
 - Skills, five ordered milestones, practical tasks, portfolio projects, and resources.
+
+Each role defines exactly four core skills plus two or three supporting skills from the shared taxonomy (the original four paths use two supporting skills; Security Analyst and Data Engineer carry three). Skill readiness is normalised by total tier weight, so the supporting count varies content, not scoring scale.
 
 These fields are original product curation. They must not be presented as official O*NET scores, a validated assessment, Indian labour-market data, or a guarantee of job readiness.
 
