@@ -253,3 +253,42 @@ def test_match_fit_explanations_fall_back_when_role_set_mismatches(
     assert body["generation_mode"] == "fallback"
     for rec in body["recommendations"]:
         assert "aligns with your strongest interests" not in rec["fit_explanation"]
+
+
+def test_match_explain_false_skips_llm_and_cache_write(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, configured_openrouter: Settings
+) -> None:
+    """?explain=false serves deterministic scores instantly and never writes
+    the cache: progress/dashboard/landing recompute without an OpenRouter
+    round-trip, and template explanations cannot evict personalized ones."""
+    _mock_openrouter(monkeypatch, json.dumps({"explanations": _explanations_for(SIX_ROLE_IDS)}))
+    client.post("/api/v1/profile", json=_sample_payload())
+
+    quick = client.post("/api/v1/match?explain=false")
+
+    assert quick.status_code == 200
+    body = quick.json()
+    # The OpenRouter mock was armed; a fallback response proves it was never called.
+    assert body["generation_mode"] == "fallback"
+    for rec in body["recommendations"]:
+        assert "ranked #" in rec["fit_explanation"]
+        assert rec["fit_explanation"] != ""
+
+    # Not persisted: GET must 404 so a later Results visit computes fresh with LLM.
+    assert client.get("/api/v1/match").status_code == 404
+
+
+def test_match_full_explain_persists_llm_result(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, configured_openrouter: Settings
+) -> None:
+    """Default POST /match keeps LLM explanations and caches them for GET."""
+    _mock_openrouter(monkeypatch, json.dumps({"explanations": _explanations_for(SIX_ROLE_IDS)}))
+    client.post("/api/v1/profile", json=_sample_payload())
+
+    full = client.post("/api/v1/match")
+    assert full.status_code == 200
+    assert full.json()["generation_mode"] == "llm"
+
+    cached = client.get("/api/v1/match")
+    assert cached.status_code == 200
+    assert cached.json()["generation_mode"] == "llm"

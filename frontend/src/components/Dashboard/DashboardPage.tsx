@@ -194,7 +194,7 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
       // Shared GET-first path (lib/api loadMatch): reads the persisted match,
       // computing only when none exists — never silently recomputes the
       // stored scores that Results/Landing show.
-      const data = await loadMatch(headers, 'Unable to load skill development')
+      const data = await loadMatch(headers, 'Unable to load skill development', { explain: true })
       const rec = data.recommendations.find((item) => item.role_id === roleId) ?? null
       setSkillRec(rec)
     } catch (error: unknown) {

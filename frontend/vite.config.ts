@@ -17,5 +17,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // vitest owns src/ unit tests; e2e/*.spec.ts belongs to Playwright (npm run e2e).
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })

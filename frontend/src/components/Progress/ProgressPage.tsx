@@ -80,7 +80,7 @@ export function ProgressPage({ onBackToHome, onOpenDashboard, onViewResults }: P
         let roleId: string | null = profile.selected_role_id ?? null
         if (!roleId) {
           try {
-            const data = await loadMatch(headers, 'Could not load your results.')
+            const data = await loadMatch(headers, 'Could not load your results.', { explain: true })
             roleId = data.recommendations?.[0]?.role_id ?? null
           } catch (err: unknown) {
             if (err instanceof ProfileMissingError) {

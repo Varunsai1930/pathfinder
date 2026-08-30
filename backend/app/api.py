@@ -55,6 +55,7 @@ def list_courses() -> CourseCatalog:
 
 @router.post("/match", response_model=MatchResponse, tags=["matching"])
 def match_career_paths(
+    explain: bool = True,
     user_id: str = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> MatchResponse:
@@ -65,6 +66,13 @@ def match_career_paths(
     The result is persisted (best-effort) stamped with the profile version it
     was computed from, so GET /match can serve it without recomputation.
     Returns 404 if the user has not submitted a profile yet.
+
+    ``?explain=false`` fills the deterministic template explanations instead of
+    the LLM batch and skips the cache write: surfaces that only need scores and
+    role ids (progress resolution, dashboard skill columns, landing top-path)
+    recompute in milliseconds instead of paying an OpenRouter round-trip, and
+    template explanations never evict personalized ones from the cache that
+    Results serves.
     """
     stored = get_profile(user_id=user_id, settings=settings)
     profile_updated_at = get_profile_updated_at(user_id=user_id, settings=settings)
@@ -74,6 +82,8 @@ def match_career_paths(
         work_style_responses=stored.work_style_responses,
     )
     deterministic_match = match_profile(profile)
+    if not explain:
+        return personalize_match_response(deterministic_match, stored.constraints, settings, use_llm=False)
     response = personalize_match_response(deterministic_match, stored.constraints, settings)
     persist_match_result(user_id, response, profile_updated_at, settings)
     return response

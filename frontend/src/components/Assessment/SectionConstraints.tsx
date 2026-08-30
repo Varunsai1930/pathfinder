@@ -125,11 +125,18 @@ export function SectionConstraints({
               >
                 <div className="card-top">
                   <h5 className="work-style-title">{title}</h5>
-                  {isMissing && <span className="missing-badge">Rating required</span>}
+                  {isMissing && (
+                  <span className="missing-badge" id={`field-work_style-${key}-note`}>
+                    Rating required
+                  </span>
+                )}
                 </div>
                 <p className="work-style-desc">{description}</p>
 
-                <fieldset className="work-style-rating">
+                <fieldset
+                  className="work-style-rating"
+                  aria-describedby={isMissing ? `field-work_style-${key}-note` : undefined}
+                >
                   <legend className="sr-only">Rating for {title}</legend>
                   <div className="rating-scale-labels">
                     <span className="edge-label">{lowLabel}</span>
@@ -155,6 +162,7 @@ export function SectionConstraints({
                             checked={isSelected}
                             onChange={() => onWorkStyleChange(key, val)}
                             className="sr-only"
+                            aria-invalid={isMissing || undefined}
                           />
                           <span className="rating-num">{val}</span>
                         </label>
@@ -191,7 +199,7 @@ export function SectionConstraints({
                 Weekly Study Time
               </label>
               {missingFields.includes('hours_per_week') && (
-                <span className="missing-badge">Required</span>
+                <span className="missing-badge" id="hours-required-note">Required</span>
               )}
             </div>
             <p className="input-helper">How many hours can you dedicate to learning and building each week?</p>
@@ -211,6 +219,10 @@ export function SectionConstraints({
                   }}
                   placeholder="e.g. 15"
                   className="hours-input"
+                  aria-invalid={missingFields.includes('hours_per_week') || undefined}
+                  aria-describedby={
+                    missingFields.includes('hours_per_week') ? 'hours-required-note' : undefined
+                  }
                 />
                 <span className="hours-unit">hours / week</span>
               </div>
@@ -241,7 +253,7 @@ export function SectionConstraints({
             <div className="card-top">
               <span className="input-label">Target Preparation Timeline</span>
               {missingFields.includes('target_timeline_weeks') && (
-                <span className="missing-badge">Required</span>
+                <span className="missing-badge" id="timeline-required-note">Required</span>
               )}
             </div>
             <p className="input-helper">When do you aim to complete your milestone portfolio project?</p>
@@ -265,6 +277,10 @@ export function SectionConstraints({
                       checked={isSelected}
                       onChange={() => onConstraintsChange('target_timeline_weeks', value)}
                       className="sr-only"
+                      aria-invalid={missingFields.includes('target_timeline_weeks') || undefined}
+                      aria-describedby={
+                        missingFields.includes('target_timeline_weeks') ? 'timeline-required-note' : undefined
+                      }
                     />
                     <span className="timeline-label">{label}</span>
                     <span className="timeline-subtext">{subtext}</span>
@@ -281,7 +297,12 @@ export function SectionConstraints({
         <div className="block-header">
           <span className="eyebrow">PART C</span>
           <h4 id="heading-career-certainty" className="block-title">
-            Career Direction Certainty
+            Career Direction Certainty{' '}
+            {missingFields.includes('career_certainty') && (
+              <span className="missing-badge" id="certainty-required-note">
+                Selection required
+              </span>
+            )}
           </h4>
           <p className="block-subtitle">Help us tailor how exploratory versus specialized your initial guidance will be.</p>
         </div>
@@ -310,6 +331,10 @@ export function SectionConstraints({
                   checked={isSelected}
                   onChange={() => onConstraintsChange('career_certainty', value)}
                   className="sr-only"
+                  aria-invalid={missingFields.includes('career_certainty') || undefined}
+                  aria-describedby={
+                    missingFields.includes('career_certainty') ? 'certainty-required-note' : undefined
+                  }
                 />
                 <div className="certainty-radio-indicator">
                   <div className="indicator-inner" />

@@ -51,7 +51,7 @@ function useTopPath(userEmail: string | null): TopPath | null {
         if (!token) return
         const headers = { Authorization: `Bearer ${token}` }
 
-        const data = await loadMatch(headers)
+        const data = await loadMatch(headers, 'Failed to load results', { explain: true })
         const top = data.recommendations?.[0]
         if (cancelled || !top) return
         settledRef.current = true

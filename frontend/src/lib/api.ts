@@ -55,13 +55,24 @@ async function detailFrom(res: Response, fallback: string): Promise<string> {
  * Every surface that reads match data uses this, so no page silently
  * recomputes and overwrites the stored match behind the others' backs.
  * `fallback` seeds the error message when the backend sends no usable detail.
+ *
+ * `opts.explain` (default false) applies to the recompute leg only: the POST
+ * gets `?explain=false`, which returns deterministic template explanations
+ * without the OpenRouter round-trip and without writing the cache — right for
+ * surfaces that only read scores/role ids (Progress, Dashboard, Landing).
+ * Results omits it so a recompute there stays personalized and cached.
  */
-export async function loadMatch(headers: HeadersInit, fallback = 'Failed to load results'): Promise<MatchResponse> {
+export async function loadMatch(
+  headers: HeadersInit,
+  fallback = 'Failed to load results',
+  opts: { explain?: boolean } = {},
+): Promise<MatchResponse> {
   let res = await fetch(`${config.apiUrl}/api/v1/match`, { headers })
   if (res.status === 404 || res.status === 405) {
     const profileRes = await fetch(`${config.apiUrl}/api/v1/profile`, { headers })
     if (profileRes.status === 404) throw new ProfileMissingError()
-    res = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })
+    const suffix = opts.explain ? '?explain=false' : ''
+    res = await fetch(`${config.apiUrl}/api/v1/match${suffix}`, { method: 'POST', headers })
   }
   if (!res.ok) {
     throw new Error(await detailFrom(res, `${fallback} (${res.status})`))

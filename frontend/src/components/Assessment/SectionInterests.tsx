@@ -59,12 +59,20 @@ export function SectionInterests({
                 <span className="question-dimension-tag" title={DIMENSION_LABELS[q.dimension] ?? q.dimension}>
                   {q.dimension.toUpperCase()}
                 </span>
-                {isMissing && <span className="missing-badge">Response required</span>}
+                {isMissing && (
+                <span className="missing-badge" id={`${q.id}-required-note`}>
+                  Response required
+                </span>
+              )}
               </header>
 
               <p className="question-prompt">{q.prompt}</p>
 
-              <fieldset className="segmented-scale" aria-label={`Response for question ${index + 1}`}>
+              <fieldset
+                className="segmented-scale"
+                aria-label={`Response for question ${index + 1}`}
+                aria-describedby={isMissing ? `${q.id}-required-note` : undefined}
+              >
                 <legend className="sr-only">{q.prompt}</legend>
                 <div className="scale-options-grid">
                   {response_scale.map((label: string, scaleIdx: number) => {

@@ -32,7 +32,7 @@ export function SectionGoal({
         </p>
       </div>
 
-      <div className="goal-intake-card">
+      <div className="goal-intake-card" aria-busy={isLoading}>
         <label htmlFor="goal-textarea" className="input-label">
           Your goal, in your own words
         </label>
@@ -57,6 +57,12 @@ export function SectionGoal({
           </span>
         </div>
 
+        {isLoading && (
+          <p className="intake-status" role="status">
+            Drafting your assessment from your goal — this usually takes a few seconds…
+          </p>
+        )}
+
         {error && (
           <div className="validation-banner" role="alert">
             <span className="validation-icon">✕</span>
@@ -66,7 +72,7 @@ export function SectionGoal({
 
         <div className="goal-actions">
           <button type="button" className="btn-primary" onClick={onPrefill} disabled={!canSubmit}>
-            {isLoading ? 'Reading your goal…' : 'Pre-fill my assessment →'}
+            {isLoading ? 'Drafting your assessment…' : 'Pre-fill my assessment →'}
           </button>
           <button type="button" className="btn-secondary" onClick={onSkip} disabled={isLoading}>
             Skip — I'll fill it in myself

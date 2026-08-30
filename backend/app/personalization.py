@@ -212,13 +212,23 @@ def _fallback_fit_explanation(recommendation: CareerRecommendation) -> str:
 
 
 def personalize_match_response(
-    match: MatchResponse, constraints: ProfileConstraints, settings: Settings
+    match: MatchResponse,
+    constraints: ProfileConstraints,
+    settings: Settings,
+    use_llm: bool = True,
 ) -> MatchResponse:
-    """Add validated two-to-three sentence rationale per deterministic result."""
+    """Add validated two-to-three sentence rationale per deterministic result.
+
+    ``use_llm=False`` returns the deterministic template explanations directly —
+    identical shape to the failure fallback, but without the OpenRouter
+    round-trip (used by the POST /match?explain=false fast path).
+    """
     fallback_recommendations = [
         recommendation.model_copy(update={"fit_explanation": _fallback_fit_explanation(recommendation)})
         for recommendation in match.recommendations
     ]
+    if not use_llm:
+        return match.model_copy(update={"recommendations": fallback_recommendations, "generation_mode": "fallback"})
     context = {
         "hours_per_week": constraints.hours_per_week,
         "target_timeline_weeks": constraints.target_timeline_weeks,

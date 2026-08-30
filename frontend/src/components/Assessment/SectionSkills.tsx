@@ -113,12 +113,20 @@ export function SectionSkills({
                     <div className="skill-info">
                       <div className="skill-name-row">
                         <h5 className="skill-name">{skill.name}</h5>
-                        {isMissing && <span className="missing-badge">Rating required</span>}
+                        {isMissing && (
+                        <span className="missing-badge" id={`skill-${skill.id}-required-note`}>
+                          Rating required
+                        </span>
+                      )}
                       </div>
                       <p className="skill-prompt">{skill.profile_prompt}</p>
                     </div>
 
-                    <fieldset className="skill-confidence-selector" aria-label={`Confidence for ${skill.name}`}>
+                    <fieldset
+                      className="skill-confidence-selector"
+                      aria-label={`Confidence for ${skill.name}`}
+                      aria-describedby={isMissing ? `skill-${skill.id}-required-note` : undefined}
+                    >
                       <legend className="sr-only">Confidence level for {skill.name}</legend>
                       <div className="confidence-pills">
                         {CONFIDENCE_LEVELS.map(({ value, label, hint }) => {
@@ -142,6 +150,7 @@ export function SectionSkills({
                                 checked={isSelected}
                                 onChange={() => onChange(skill.id, value)}
                                 className="sr-only"
+                                aria-invalid={isMissing || undefined}
                               />
                               <span className="pill-dot" />
                               <span className="pill-text">{label}</span>
