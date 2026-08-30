@@ -7,9 +7,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
+        // Function form: object form matches exact module ids only, so
+        // 'react-dom/client' (a different id than 'react-dom') stayed in the
+        // entry chunk and dragged react-dom internals with it. Route every
+        // dependency into the stable vendor chunk (better long-term caching);
+        // the Supabase SDK stays separate so it is only fetched when a
+        // dynamic import needs it.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('@supabase')) return 'supabase'
+          return 'vendor'
         },
       },
     },

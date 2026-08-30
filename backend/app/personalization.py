@@ -147,6 +147,37 @@ class AskQuestionResponse(_StrictModel):
     generation_mode: str
 
 
+_openai_client_cache: tuple[Any, Any] | None = None
+
+
+def _get_openai_client(settings: Settings) -> Any | None:
+    """Reuse one OpenAI SDK client across LLM calls.
+
+    The client is thread-safe and holds its own connection pool, so a fresh
+    client per call re-pays TCP+TLS setup on the app's slowest endpoints. The
+    cache is keyed by the client class actually used and its api_key: tests
+    monkeypatch ``personalization.OpenAI`` with fakes, and keying on the class
+    means a patched class always gets a fresh instance without leaking state
+    between tests, while a rotated key still builds a new client.
+    """
+    global _openai_client_cache
+    if OpenAI is None or not settings.openrouter_api_key:
+        return None
+    if (
+        _openai_client_cache is not None
+        and _openai_client_cache[0] is OpenAI
+        and getattr(_openai_client_cache[1], "api_key", None) == settings.openrouter_api_key
+    ):
+        return _openai_client_cache[1]
+    client = OpenAI(
+        api_key=settings.openrouter_api_key,
+        base_url="https://openrouter.ai/api/v1",
+        timeout=25.0,
+    )
+    _openai_client_cache = (OpenAI, client)
+    return client
+
+
 def _structured_completion(
     model_type: type[_OutputModel], *, system: str, user: str, settings: Settings
 ) -> _OutputModel | None:
@@ -154,11 +185,9 @@ def _structured_completion(
     if not settings.openrouter_api_key or OpenAI is None:
         return None
     try:
-        client = OpenAI(
-            api_key=settings.openrouter_api_key,
-            base_url="https://openrouter.ai/api/v1",
-            timeout=25.0,
-        )
+        client = _get_openai_client(settings)
+        if client is None:
+            return None
         response = client.chat.completions.create(
             model=settings.openrouter_model,
             temperature=0.1,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
 import { loadMatch, type CareerRecommendation } from '../../lib/api'
+import { fetchAssessmentCatalog, fetchCoursesCatalog } from '../../data/assessmentCatalog'
 import { AskAboutResults } from '../Questions/AskAboutResults'
 import { ErrorBoundary, Skeleton } from '../ErrorBoundary'
 
@@ -214,18 +215,16 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
     async function loadCoursesAndSkills() {
       try {
         setCoursesLoading(true)
-        const [coursesRes, assessmentRes] = await Promise.all([
-          fetch(`${config.apiUrl}/api/v1/catalog/courses`),
-          fetch(`${config.apiUrl}/api/v1/catalog/assessment`),
+        // Session-cached catalogs; assessment failure only skips the map.
+        const [coursesData, assessmentData] = await Promise.all([
+          fetchCoursesCatalog(),
+          fetchAssessmentCatalog().catch(() => null),
         ])
-        if (!coursesRes.ok) throw new Error(`Failed to load courses (${coursesRes.status})`)
-        const data = (await coursesRes.json()) as { courses: Course[] }
-        if (!cancelled) setCourses(data.courses)
+        if (!cancelled) setCourses(coursesData.courses)
         // Derive skill name -> id map from assessment catalog (removes hardcode brittleness)
-        if (assessmentRes.ok) {
-          const assessment = (await assessmentRes.json()) as { skills: { id: string; name: string }[] }
+        if (assessmentData) {
           const map = new Map<string, string>()
-          for (const s of assessment.skills) {
+          for (const s of assessmentData.skills) {
             map.set(s.name.toLowerCase(), s.id)
           }
           if (!cancelled) setSkillNameToIdMap(map)

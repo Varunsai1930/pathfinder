@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { config } from '../../lib/config'
-import { supabase } from '../../lib/supabase'
 
 interface ChatMessage {
   id: string
@@ -59,6 +59,18 @@ export function ChatWidget() {
     }
     if (text.length > 500) {
       setError('Question must be 500 characters or fewer.')
+      return
+    }
+
+    // The Supabase SDK is loaded on first send instead of at page load: this
+    // widget is mounted on every route (including the signed-out landing), so
+    // a static import here would pull the ~57 KB gzipped SDK into every page's
+    // first paint even for visitors who never open chat.
+    let supabase: SupabaseClient | null = null
+    try {
+      ;({ supabase } = await import('../../lib/supabase'))
+    } catch {
+      setError('Chat is unavailable right now — please try again.')
       return
     }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
 import { loadMatch, ProfileMissingError } from '../../lib/api'
+import { fetchRolesCatalog } from '../../data/assessmentCatalog'
 
 interface WeeklyItem {
   week: number
@@ -61,10 +62,10 @@ export function ProgressPage({ onBackToHome, onOpenDashboard, onViewResults }: P
         if (!token) throw new Error('You must be signed in to view your progress.')
         const headers = { Authorization: `Bearer ${token}` }
 
-        // Static catalog for role titles (public, no auth needed).
-        const [profileRes, catalogRes] = await Promise.all([
+        // Static catalog for role titles (public, no auth needed; session-cached).
+        const [profileRes, catalog] = await Promise.all([
           fetch(`${config.apiUrl}/api/v1/profile`, { headers }),
-          fetch(`${config.apiUrl}/api/v1/catalog/roles`),
+          fetchRolesCatalog().catch(() => null),
         ])
         if (profileRes.status === 404) {
           if (!cancelled) setState({ kind: 'no-assessment' })
@@ -72,7 +73,6 @@ export function ProgressPage({ onBackToHome, onOpenDashboard, onViewResults }: P
         }
         if (!profileRes.ok) throw new Error(await detailFrom(profileRes, 'Could not load your profile.'))
         const profile = await profileRes.json()
-        const catalog = catalogRes.ok ? await catalogRes.json() : null
         const titleFor = (roleId: string) =>
           catalog?.roles?.find((r: { id: string; title: string }) => r.id === roleId)?.title ?? roleId.replace(/-/g, ' ')
 

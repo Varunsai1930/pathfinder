@@ -97,11 +97,15 @@ def _decode_jwt(token: str, settings: Settings) -> dict:
     )
 
 
-async def get_current_user(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     settings: Settings = Depends(get_settings),
 ) -> str:
     """Return the authenticated Supabase user ID from a verified JWT.
+
+    Deliberately sync: PyJWKClient fetches/refreshes the JWKS over blocking
+    urllib I/O inside ``_decode_jwt``, and FastAPI runs sync dependencies in
+    the threadpool so that fetch can never stall the event loop.
 
     The user ID is always derived from the token's ``sub`` claim — never
     from request body data.  Override this dependency in tests via
