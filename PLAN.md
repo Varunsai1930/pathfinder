@@ -2,7 +2,7 @@
 
 ## Summary
 
-Build a web SaaS for **Indian tech students** that recommends one of four career paths—**Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer**—then creates a grounded, actionable learning roadmap.
+Build a web SaaS for **Indian tech students** that recommends one of six career paths—**Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer, Security Analyst, Data Engineer**—then creates a grounded, actionable learning roadmap.
 
 The recommender is deterministic and transparent. An LLM personalizes explanations and pacing, with a non-LLM fallback so the demo always works. Users sign in with email; an optional résumé and GitHub URL enrich their manually entered profile only after consent.
 
@@ -19,7 +19,7 @@ The recommender is deterministic and transparent. An LLM personalizes explanatio
 
 ### 2. Grounded career data and matching
 
-Create curated data for exactly four roles. Each role includes:
+Create curated data for six roles (the four original paths plus Security Analyst and Data Engineer, added during the build). Each role includes:
 
 - Role description and expected entry-level outcome.
 - Six numeric interest weights aligned to RIASEC categories.
@@ -52,7 +52,7 @@ Build five pages:
 
 1. **Landing** — concise value proposition, supported roles, privacy statement, email sign-in.
 2. **Assessment** — three short sections: interests, skills, constraints. Show progress and allow saving between sections.
-3. **Results** — ranked cards for all four roles, top recommendation highlighted, with fit breakdown, three supporting reasons, two biggest gaps, and “Explore path.”
+3. **Results** — ranked cards for all six roles, top recommendation highlighted, with fit breakdown, three supporting reasons, two biggest gaps, and “Explore path.”
 4. **Career path dashboard** — selected role, current readiness, five visual milestones, weekly plan, project brief, checklist, and next best action.
 5. **Profile & evidence** — edit assessment, connect GitHub URL, upload résumé, view extracted skills, approve or reject each proposed skill before it affects the profile.
 
@@ -87,7 +87,7 @@ Implement these authenticated FastAPI endpoints:
 
 - `POST /profile` — save assessment, skills, preferences, and constraints.
 - `GET /profile` — return the persisted user profile.
-- `POST /match` — calculate and persist all four role scores and return their score breakdowns.
+- `POST /match` — calculate and persist all six role scores and return their score breakdowns.
 - `POST /roadmaps/{role_id}` — create or refresh the selected role’s personalized weekly plan.
 - `GET /roadmaps/{role_id}` — return roadmap, milestones, and task completion state.
 - `PATCH /tasks/{task_id}` — update a task’s completion state and return the recalculated next action.
@@ -138,4 +138,4 @@ Keep role definitions in backend static JSON, not the database.
 - The dashboard deadline of **Aug 25, 5:29 AM IST** governs submission; submission occurs by Aug 23.
 - Users are advised that Pathfinder is a career-exploration tool, not a guarantee of employment or professional counselling.
 - A live LLM key and Supabase/Vercel/Railway accounts are available before implementation begins.
-- Four deeply curated roles are preferable to broad but weak career coverage for this prototype.
+- Deeply curated roles are preferable to broad but weak career coverage for this prototype — the plan started with four and expanded to six (Security Analyst, Data Engineer).

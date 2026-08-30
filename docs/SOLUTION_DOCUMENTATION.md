@@ -8,7 +8,7 @@ Positioning statement (use verbatim in the deck and demo): **"Every other tool t
 
 - Audience: Indian tech students choosing an entry-level path under time and information constraints.
 - Core problem: students get generic “learn everything” advice instead of a grounded, role-specific next step.
-- Scope: four roles only (Frontend, Backend, Data Analyst, Cloud/DevOps) so recommendations stay evidence-backed.
+- Scope: six entry-level roles (Frontend, Backend, Data Analyst, Cloud/DevOps, Security Analyst, Data Engineer) so recommendations stay evidence-backed.
 - Out of scope (and why): résumé/GitHub enrichment.
 
 ## 2. Solution approach

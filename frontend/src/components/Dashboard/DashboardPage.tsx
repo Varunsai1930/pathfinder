@@ -101,7 +101,7 @@ function nextActionFromPlan(weeklyPlan: RoadmapWeek[]): NextAction {
     return {
       milestone_id: null,
       task_label: null,
-      message: 'All five roadmap milestones are complete. Great work!',
+      message: `All ${weeklyPlan.length} roadmap milestones are complete. Great work!`,
     }
   }
   return {
@@ -359,6 +359,11 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
   }
 
   const completedCount = roadmap.weekly_plan.filter((week) => week.completed).length
+  const totalMilestones = roadmap.weekly_plan.length
+  // Readiness comes from the same persisted match every other surface shows;
+  // the router-state snapshot passed at Explore-click time is only a fallback
+  // for the moment before that match loads (or if it fails).
+  const readiness = skillRec?.score_breakdown.skill_readiness ?? skillReadiness
   const telemetrySummary = (() => {
     const completed = roadmap.weekly_plan.filter((w) => w.completed)
     const times = completed.map((w) => w.time_spent_minutes).filter((v): v is number => typeof v === 'number')
@@ -393,10 +398,10 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
           <p className="dashboard-lede">A five-week milestone plan built from the skills and practical work needed for this path.</p>
         </div>
         <div className="dashboard-readiness" aria-label="Roadmap progress">
-          {skillReadiness !== undefined && (
-            <p><span>Current readiness</span><strong>{Math.round(skillReadiness)}%</strong></p>
+          {readiness !== undefined && (
+            <p><span>Current readiness</span><strong>{Math.round(readiness)}%</strong></p>
           )}
-          <p><span>Milestones complete</span><strong>{completedCount}/5</strong></p>
+          <p><span>Milestones complete</span><strong>{completedCount}/{totalMilestones}</strong></p>
         </div>
       </header>
 
@@ -593,13 +598,6 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
                             ))}
                             <span className="prereq-node prereq-node--target">{course.skill_ids[0]}</span>
                           </div>
-                          <ul style={{ display: 'none' }} aria-hidden="true">
-                            {course.prerequisites.map((pr) => (
-                              <li key={pr} className={isPrereqMet(pr) ? 'prereq-met' : 'prereq-missing'}>
-                                {isPrereqMet(pr) ? '✓' : '○'} {pr}
-                              </li>
-                            ))}
-                          </ul>
                         </div>
                       )}
                       <a href={course.url} target="_blank" rel="noreferrer" className="course-link">View course →</a>
@@ -629,14 +627,14 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
               Time on task and quiz scores adapt next recommendations. Completing milestones promotes their skills via the feedback loop; pace and quiz trends shape the next-action hint.
             </p>
           </div>
-          <span className="learning-patterns-badge">{telemetrySummary.completed.length}/5 done</span>
+                          <span className="learning-patterns-badge">{telemetrySummary.completed.length}/{totalMilestones} done</span>
         </div>
         <div className="learning-patterns-grid">
           <div className="learning-stat">
             <span className="learning-stat-label">Completion</span>
-            <strong className="learning-stat-value">{Math.round((telemetrySummary.completed.length / 5) * 100)}%</strong>
-            <span className="learning-stat-sub">{telemetrySummary.completed.length} of 5 milestones</span>
-            <div className="learning-progress-track"><div className="learning-progress-fill" style={{ width: `${(telemetrySummary.completed.length / 5) * 100}%` }} /></div>
+            <strong className="learning-stat-value">{Math.round((telemetrySummary.completed.length / totalMilestones) * 100)}%</strong>
+            <span className="learning-stat-sub">{telemetrySummary.completed.length} of {totalMilestones} milestones</span>
+            <div className="learning-progress-track"><div className="learning-progress-fill" style={{ width: `${(telemetrySummary.completed.length / totalMilestones) * 100}%` }} /></div>
           </div>
           <div className="learning-stat">
             <span className="learning-stat-label">Avg time on task</span>

@@ -71,7 +71,7 @@ def test_match_authenticated_roundtrip(client: TestClient) -> None:
 
 
 def test_match_skills_have_zero_overlap_all_roles(client: TestClient) -> None:
-    """Zero overlap between confirmed_skills and missing skills across all 4 roles."""
+    """Zero overlap between confirmed_skills and missing skills across all six roles."""
     payload = _sample_payload()
     payload["skill_confidence"] = {
         "html-css": "practised",

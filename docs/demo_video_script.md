@@ -143,8 +143,8 @@ For the Round 2 demo video (requirement: 3–5 minutes covering core functionali
 
 ## Likely judge questions — one-line answers
 
-- **"Why only four roles?"** — Scope chosen for evidence-backed quality: every role has a validated interest profile, skill taxonomy, milestones, and course set. Depth beats a thousand shallow matches.
-- **"What if the LLM hallucinates?"** — It can't reach the data layer: strict Pydantic schemas, ID/subset checks against the learner's real data, skill-attribution and timeline-honesty detectors, deterministic fallback on every failure path. 77 backend tests cover these.
+- **"Why six roles?"** — Six entry-level paths cover the majority of tech-student intent while every role keeps a validated interest profile, skill taxonomy, milestones, and course set. Depth beats a thousand shallow matches.
+- **"What if the LLM hallucinates?"** — It can't reach the data layer: strict Pydantic schemas, ID/subset checks against the learner's real data, skill-attribution and timeline-honesty detectors, deterministic fallback on every failure path. 107 backend tests cover these.
 - **"Why not let the LLM generate the whole roadmap?"** — That's exactly what competitors do, and it's unauditable. We split responsibilities: conversation for understanding, deterministic code for decisions, LLM for explanation.
 - **"How do recommendations adapt?"** — Task telemetry (time, quiz scores) drives learning-pattern analysis, suggested order adjustments, and skill promotion; the adaptation note recomputes from real task state.
 - **"What's the RIASEC grounding?"** — An 18-item Holland-code-aligned interest instrument, normalized per dimension and matched by cosine similarity against each role's validated target profile.

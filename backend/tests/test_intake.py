@@ -175,7 +175,7 @@ def test_intake_supported_goal_has_no_decline_reason(
 def test_intake_invalid_supported_path_rejected_by_schema(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, configured_openrouter: Settings
 ) -> None:
-    """A classification outside the four paths + none is a schema failure:
+    """A classification outside the six supported paths + none is a schema failure:
     the generic unavailable fallback applies, never a false decline claim."""
     extraction = _valid_extraction()
     extraction["supported_path"] = "nurse"
