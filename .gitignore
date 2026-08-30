@@ -36,3 +36,6 @@ changes.txt
 .vercel
 .env*
 action.txt
+
+# Local deck exports
+PathFinder_updated*.pdf

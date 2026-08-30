@@ -1,3 +1,7 @@
 .vercel
 .env*
 node_modules/
+
+# Playwright artifacts
+test-results/
+playwright-report/
