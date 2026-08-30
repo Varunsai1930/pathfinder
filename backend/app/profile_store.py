@@ -138,6 +138,13 @@ def upsert_profile(
             "updated_at": datetime.now(UTC).isoformat(),
         }
 
+    # Roadmap display layers are personalized against this profile — a
+    # resubmission must drop the in-process memo so the next roadmap read
+    # re-personalizes. Local import: roadmap_store already imports this module.
+    from app.roadmap_store import invalidate_display_cache_for_user
+
+    invalidate_display_cache_for_user(user_id)
+
     return ProfileResponse(
         interest_responses=payload.interest_responses,
         skill_confidence=payload.skill_confidence,

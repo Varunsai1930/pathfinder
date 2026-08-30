@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from collections import OrderedDict
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -30,9 +32,68 @@ logger = logging.getLogger(__name__)
 _in_memory_roadmaps: dict[tuple[str, str], dict[str, Any]] = {}
 
 
+class _DisplayLayerCache:
+    """Bounded in-process memo of personalized roadmap display layers.
+
+    The display layer (fit explanation, adaptation note, per-milestone focus)
+    is LLM-personalized; before this memo, *every* GET /roadmaps for a roadmap
+    with any completed milestone re-ran OpenRouter — a potential 25s stall per
+    page load. Entries are keyed by (user_id, role_id) plus a task-state
+    signature: a repeat read with unchanged progress is served from the memo.
+
+    Deliberately in-process and bounded: another worker or a restart costs one
+    extra personalization call, never a wrong answer, and a resubmitted profile
+    invalidates the user's entries explicitly (see
+    invalidate_display_cache_for_user, called from profile_store).
+    """
+
+    def __init__(self, max_entries: int = 256) -> None:
+        self._entries: OrderedDict[tuple[str, str], tuple[str, RoadmapResponse]] = OrderedDict()
+        self._max_entries = max_entries
+
+    def get(self, user_id: str, role_id: str, signature: str) -> RoadmapResponse | None:
+        entry = self._entries.get((user_id, role_id))
+        if entry is not None and entry[0] == signature:
+            self._entries.move_to_end((user_id, role_id))
+            return entry[1]
+        return None
+
+    def set(self, user_id: str, role_id: str, signature: str, layer: RoadmapResponse) -> None:
+        self._entries[(user_id, role_id)] = (signature, layer)
+        self._entries.move_to_end((user_id, role_id))
+        while len(self._entries) > self._max_entries:
+            self._entries.popitem(last=False)
+
+    def invalidate_user(self, user_id: str) -> None:
+        for key in [key for key in self._entries if key[0] == user_id]:
+            del self._entries[key]
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+
+_display_cache = _DisplayLayerCache()
+
+
+def invalidate_display_cache_for_user(user_id: str) -> None:
+    """Drop a user's cached display layers (called when their profile changes)."""
+    _display_cache.invalidate_user(user_id)
+
+
+def _display_signature(response: RoadmapResponse) -> str:
+    """The progress state the display layer was personalized against."""
+    return json.dumps(
+        [
+            [item.milestone_id, item.completed, item.time_spent_minutes, item.quiz_score]
+            for item in response.weekly_plan
+        ]
+    )
+
+
 def reset_in_memory_roadmap_store() -> None:
     """Clear roadmaps in the local test store."""
     _in_memory_roadmaps.clear()
+    _display_cache.clear()
 
 
 def _not_found() -> HTTPException:
@@ -122,6 +183,34 @@ def _personalized_or_fallback_roadmap(
     )
 
 
+def _with_display_layer(base: RoadmapResponse, layer: RoadmapResponse) -> RoadmapResponse:
+    """Apply a known display layer's texts onto a freshly merged base response.
+
+    The base carries authoritative task ids/state; the layer contributes the
+    personalized prose (fit explanation, adaptation note, per-milestone focus).
+    """
+    focus_by_milestone = {
+        item.milestone_id: item.personalized_focus for item in layer.weekly_plan
+    }
+    return base.model_copy(
+        update={
+            "generation_mode": layer.generation_mode,
+            "fit_explanation": layer.fit_explanation,
+            "adaptation_note": layer.adaptation_note,
+            "weekly_plan": [
+                item.model_copy(
+                    update={
+                        "personalized_focus": focus_by_milestone.get(
+                            item.milestone_id, item.personalized_focus
+                        )
+                    }
+                )
+                for item in base.weekly_plan
+            ],
+        }
+    )
+
+
 def _fresh_display_layer(
     response: RoadmapResponse, user_id: str, settings: Settings
 ) -> RoadmapResponse:
@@ -130,10 +219,22 @@ def _fresh_display_layer(
     The stored layer is generated at creation time, when nothing is completed;
     returning it verbatim would show an empty adaptation_note next to finished
     milestones. Fresh roadmaps keep the stored layer without another LLM call.
+
+    Memoized on the task-state signature: repeat reads with unchanged progress
+    (the common case — a judge clicking between Progress and Dashboard) are
+    served without an OpenRouter round-trip. A task toggle or profile
+    resubmission changes the signature / clears the memo, so the layer is
+    honestly recomputed exactly when the state it describes changes.
     """
+    signature = _display_signature(response)
+    cached = _display_cache.get(user_id, response.role_id, signature)
+    if cached is not None:
+        return cached
     if not any(item.completed for item in response.weekly_plan):
         return response
-    return _personalized_or_fallback_roadmap(response, user_id=user_id, settings=settings)
+    layer = _personalized_or_fallback_roadmap(response, user_id=user_id, settings=settings)
+    _display_cache.set(user_id, response.role_id, signature, layer)
+    return layer
 
 
 
@@ -198,6 +299,8 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
         item.model_copy(update={
             "task_id": existing_tasks.get(item.milestone_id, {}).get("id"),
             "completed": existing_tasks.get(item.milestone_id, {}).get("completed", False),
+            "time_spent_minutes": existing_tasks.get(item.milestone_id, {}).get("time_spent_minutes"),
+            "quiz_score": existing_tasks.get(item.milestone_id, {}).get("quiz_score"),
         })
         for item in weekly_plan
     ]
@@ -273,8 +376,18 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
         settings=settings,
     )
     _mark_selected_role(user_id=user_id, role_id=role_id, settings=settings)
+    # The layer above was personalized against exactly this task state — seed
+    # the memo so the return trip and the next GET stay LLM-free (previously
+    # POST /roadmaps ran the LLM twice, and every GET ran it again).
+    merged = _response_from_row(stored_row, user_id=user_id, settings=settings)
+    _display_cache.set(
+        user_id,
+        role_id,
+        _display_signature(merged),
+        _with_display_layer(merged, personalized),
+    )
     return _fresh_display_layer(
-        _response_from_row(stored_row, user_id=user_id, settings=settings),
+        merged,
         user_id=user_id,
         settings=settings,
     )

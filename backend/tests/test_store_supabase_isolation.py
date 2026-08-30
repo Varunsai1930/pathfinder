@@ -144,3 +144,45 @@ def test_fallback_mode_still_persists_in_memory(monkeypatch) -> None:
     assert (USER_ID, "frontend-developer") in _in_memory_roadmaps
     assert len(_in_memory_tasks) == 5
     assert _FakePostgrestClient.calls == []
+
+
+def test_match_cache_upsert_targets_user_role_conflict(monkeypatch) -> None:
+    """The recommendations upsert must name the (user_id, role_id) arbiter.
+
+    PostgREST defaults on_conflict to the primary key — a surrogate uuid that
+    never conflicts — so an untargeted merge-duplicates write 409s on the
+    second save and the match cache silently stays write-once per user.
+    """
+    monkeypatch.setattr(httpx, "Client", _FakePostgrestClient)
+    _FakePostgrestClient.calls = []
+    _reset_local_stores()
+
+    from app.match_store import persist_match_result
+    from app.matching.models import MatchProfile
+    from app.matching.service import match_profile
+
+    upsert_profile(
+        user_id=USER_ID,
+        payload=ProfilePayload.model_validate(SAMPLE_PROFILE),
+        settings=_supabase_settings(),
+    )
+    # match_profile validates interest keys against the real catalog, so the
+    # fake q1..q18 IDs in SAMPLE_PROFILE cannot be reused here.
+    interest_responses = {
+        f"{dimension}-{index}": 3
+        for dimension in ("realistic", "investigative", "artistic", "social", "enterprising", "conventional")
+        for index in (1, 2, 3)
+    }
+    response = match_profile(
+        MatchProfile(
+            interest_responses=interest_responses,
+            skill_confidence=SAMPLE_PROFILE["skill_confidence"],
+            work_style_responses=SAMPLE_PROFILE["work_style_responses"],
+        )
+    )
+
+    persist_match_result(USER_ID, response, "2026-01-01T00:00:00+00:00", _supabase_settings())
+
+    posts = [call for call in _FakePostgrestClient.calls if "/rest/v1/recommendations" in call]
+    assert posts, "match cache write never reached PostgREST"
+    assert any("on_conflict=user_id,role_id" in call for call in posts)

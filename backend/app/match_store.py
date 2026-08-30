@@ -58,9 +58,16 @@ def persist_match_result(
         try:
             # Single-statement upsert on the (user_id, role_id) unique index
             # (20260831000000_recommendations_unique.sql) — replaces the old
-            # delete-then-insert round trip.
+            # delete-then-insert round trip. on_conflict must name that index
+            # explicitly: PostgREST otherwise targets the surrogate id PK,
+            # which never conflicts, so a second write would 409 and the
+            # cache would stay write-once per user.
             with httpx.Client(timeout=10.0) as client:
-                created = client.post(f"{base_url}/rest/v1/recommendations", headers=headers, json=rows)
+                created = client.post(
+                    f"{base_url}/rest/v1/recommendations?on_conflict=user_id,role_id",
+                    headers=headers,
+                    json=rows,
+                )
             if created.status_code not in (200, 201):
                 logger.warning("Match result persistence failed %d: %s", created.status_code, created.text)
         except httpx.RequestError as exc:
