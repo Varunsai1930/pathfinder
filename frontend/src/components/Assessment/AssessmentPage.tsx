@@ -15,7 +15,7 @@ import type {
   SkillConfidence,
   WorkStyleResponses,
 } from '../../types/assessment'
-import type { MatchResponse } from '../Results/ResultsPage'
+import type { MatchResponse } from '../../lib/api'
 import { ProgressBar } from './ProgressBar'
 import { SectionConstraints } from './SectionConstraints'
 import { SectionGoal } from './SectionGoal'

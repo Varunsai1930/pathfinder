@@ -1,36 +1,7 @@
 import { useEffect, useState } from 'react'
-import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
+import { loadMatch, type CareerRecommendation, type MatchResponse } from '../../lib/api'
 import { AskAboutResults } from '../Questions/AskAboutResults'
-
-/* ------------------------------------------------------------------ */
-/*  Types matching backend MatchResponse                               */
-/* ------------------------------------------------------------------ */
-
-interface ScoreBreakdown {
-  interest_alignment: number
-  skill_readiness: number
-  work_style_alignment: number
-}
-
-export interface CareerRecommendation {
-  rank: number
-  role_id: string
-  role_title: string
-  pathfinder_fit_score: number
-  score_breakdown: ScoreBreakdown
-  confirmed_skills: string[]
-  missing_core_skills: string[]
-  missing_supporting_skills: string[]
-  fit_explanation: string
-}
-
-export interface MatchResponse {
-  normalized_interest_profile: Record<string, number>
-  normalized_work_style_profile: Record<string, number>
-  recommendations: CareerRecommendation[]
-  generation_mode: 'fallback' | 'llm'
-}
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -79,80 +50,28 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
     return token
   }
 
-  const detailFromResponse = async (res: Response, fallback: string): Promise<string> => {
-    let detail = fallback
-    try {
-      const body = await res.json()
-      if (body?.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
-    } catch { /* response was not JSON */ }
-    return detail
-  }
-
-  /** Compute a fresh match (POST) — used on first visit and by the Retry button. */
-  const fetchMatch = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const token = await getAuthToken()
-
-      const res = await fetch(`${config.apiUrl}/api/v1/match`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!res.ok) {
-        throw new Error(await detailFromResponse(res, `Matching failed (${res.status})`))
-      }
-
-      const data: MatchResponse = await res.json()
-      setMatchData(data)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error while computing matches.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   /**
-   * Mount path: load the persisted match first; only POST (compute) when the
-   * backend has no fresh result for the current profile version. Navigating
-   * back to this page must never silently recompute scores.
+   * Mount and Retry path: load the persisted match first; only POST (compute)
+   * when the backend has no fresh result for the current profile version.
+   * Navigating back to this page must never silently recompute scores.
    */
-  const loadMatch = async () => {
+  const loadResults = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
       const token = await getAuthToken()
-
-      const cached = await fetch(`${config.apiUrl}/api/v1/match`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (cached.ok) {
-        setMatchData((await cached.json()) as MatchResponse)
-        setIsLoading(false)
-        return
-      }
-      if (cached.status !== 404 && cached.status !== 405) {
-        throw new Error(await detailFromResponse(cached, `Failed to load results (${cached.status})`))
-      }
-      // 404: no persisted result for this profile version — compute once.
-      // 405: backend build predates GET /match — compute (POST) as before.
-      await fetchMatch()
+      setMatchData(await loadMatch({ Authorization: `Bearer ${token}` }, 'Failed to load results'))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error while loading results.')
+    } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
     if (!preloaded) {
-      loadMatch()
+      loadResults()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -178,7 +97,7 @@ export function ResultsPage({ matchData: preloaded, onBackToHome, onEditAssessme
         <h3>Unable to Compute Matches</h3>
         <p className="error-message">{error ?? 'Match data could not be retrieved.'}</p>
         <div className="error-actions">
-          <button type="button" className="btn-primary" onClick={fetchMatch}>
+          <button type="button" className="btn-primary" onClick={loadResults}>
             Retry
           </button>
           {onBackToHome && (

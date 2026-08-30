@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
+import { loadMatch, type CareerRecommendation } from '../../lib/api'
 import { AskAboutResults } from '../Questions/AskAboutResults'
-import type { CareerRecommendation, MatchResponse } from '../Results/ResultsPage'
 import { ErrorBoundary, Skeleton } from '../ErrorBoundary'
 
 interface Course {
@@ -191,20 +191,10 @@ export function DashboardPage({ roleId, roleTitle, skillReadiness, portfolioProj
       setSkillLoading(true)
       setSkillError(null)
       const headers = await getAuthHeaders()
-      const response = await fetch(`${config.apiUrl}/api/v1/match`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      })
-      if (!response.ok) {
-        let body: unknown = null
-        try {
-          body = await response.json()
-        } catch {
-          /* not JSON */
-        }
-        throw responseError(response.status, 'Unable to load skill development', body)
-      }
-      const data = (await response.json()) as MatchResponse
+      // Shared GET-first path (lib/api loadMatch): reads the persisted match,
+      // computing only when none exists — never silently recomputes the
+      // stored scores that Results/Landing show.
+      const data = await loadMatch(headers, 'Unable to load skill development')
       const rec = data.recommendations.find((item) => item.role_id === roleId) ?? null
       setSkillRec(rec)
     } catch (error: unknown) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { config } from '../../lib/config'
 import { supabase } from '../../lib/supabase'
+import { loadMatch, ProfileMissingError } from '../../lib/api'
 
 interface WeeklyItem {
   week: number
@@ -78,12 +79,16 @@ export function ProgressPage({ onBackToHome, onOpenDashboard, onViewResults }: P
         // Track the path the learner actually explored; fall back to their top match.
         let roleId: string | null = profile.selected_role_id ?? null
         if (!roleId) {
-          let matchRes = await fetch(`${config.apiUrl}/api/v1/match`, { headers })
-          if (matchRes.status === 404 || matchRes.status === 405) {
-            matchRes = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })
+          try {
+            const data = await loadMatch(headers, 'Could not load your results.')
+            roleId = data.recommendations?.[0]?.role_id ?? null
+          } catch (err: unknown) {
+            if (err instanceof ProfileMissingError) {
+              if (!cancelled) setState({ kind: 'no-assessment' })
+              return
+            }
+            throw err
           }
-          if (!matchRes.ok) throw new Error(await detailFrom(matchRes, 'Could not load your results.'))
-          roleId = (await matchRes.json()).recommendations?.[0]?.role_id ?? null
         }
         if (!roleId) {
           if (!cancelled) setState({ kind: 'no-assessment' })

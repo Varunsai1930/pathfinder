@@ -8,7 +8,8 @@ import { LoginPage } from './components/Login/LoginPage'
 import { SignUpPage } from './components/Login/SignUpPage'
 import { ProgressPage } from './components/Progress/ProgressPage'
 import { QuestionsPage } from './components/Questions/QuestionsPage'
-import { ResultsPage, type MatchResponse } from './components/Results/ResultsPage'
+import { ResultsPage } from './components/Results/ResultsPage'
+import type { MatchResponse } from './lib/api'
 import { supabase } from './lib/supabase'
 
 interface ResultsLocationState {

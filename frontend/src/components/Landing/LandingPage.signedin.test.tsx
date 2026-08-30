@@ -43,8 +43,8 @@ describe('LandingPage (signed in with a persisted match)', () => {
   })
 
   it('prefetches the top path on mount and renders the welcome-back card', async () => {
-    const fetchMock = vi.fn(
-      async (_url: RequestInfo | URL, _init?: RequestInit) =>
+    const fetchMock = vi.fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () =>
         new Response(JSON.stringify(matchResponse), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },

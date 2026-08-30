@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { config } from '../../lib/config'
+import { loadMatch, ProfileMissingError } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 
 interface TopPath {
@@ -51,19 +51,7 @@ function useTopPath(userEmail: string | null): TopPath | null {
         if (!token) return
         const headers = { Authorization: `Bearer ${token}` }
 
-        let res = await fetch(`${config.apiUrl}/api/v1/match`, { headers })
-        if (res.status === 404 || res.status === 405) {
-          // 404: no fresh persisted result (or no profile yet). 405: backend
-          // build predates GET /match — compute once only if a profile exists.
-          const profileRes = await fetch(`${config.apiUrl}/api/v1/profile`, { headers })
-          if (profileRes.status === 404) {
-            settledRef.current = true
-            return
-          }
-          res = await fetch(`${config.apiUrl}/api/v1/match`, { method: 'POST', headers })
-        }
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await loadMatch(headers)
         const top = data.recommendations?.[0]
         if (cancelled || !top) return
         settledRef.current = true
@@ -72,7 +60,12 @@ function useTopPath(userEmail: string | null): TopPath | null {
           role_title: top.role_title,
           fit: Math.round(top.pathfinder_fit_score),
         })
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof ProfileMissingError) {
+          // Confirmed: no assessment yet — terminal for this mount.
+          settledRef.current = true
+          return
+        }
         // Transient failure — landing stays on the example card; a later
         // auth-state trigger may retry.
       }
