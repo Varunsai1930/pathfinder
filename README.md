@@ -1,5 +1,7 @@
 # Pathfinder
 
+[![CI](https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml)
+
 Career-path planning SaaS for tech students. Pathfinder maps a short interest-and-skills assessment onto six entry-level technology roles, shows a transparent fit breakdown, and produces a milestone-based learning roadmap.
 
 Supported roles: Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer, Security Analyst, Data Engineer.
@@ -41,6 +43,7 @@ In the Supabase SQL editor, run the migrations in order:
 4. `supabase/migrations/20260820000000_llm_personalization.sql`
 5. `supabase/migrations/20260822000000_task_telemetry.sql`
 6. `supabase/migrations/20260823000000_profile_goal_text.sql`
+7. `supabase/migrations/20260831000000_recommendations_unique.sql`
 
 Enable email OTP under Authentication → Providers → Email.
 
@@ -100,7 +103,16 @@ From `backend/` with the virtualenv active:
 pytest
 ```
 
-These cover catalog loading, representative-profile matching, profile/match endpoints, and roadmap/task persistence.
+115 tests, zero warnings (one additional test is skipped unless `OPENROUTER_API_KEY` is set; it exercises the live LLM pipeline). They cover catalog loading, representative-profile matching for all six roles, the goal-text injection guard, profile/match endpoints, and roadmap/task persistence.
+
+From `frontend/`:
+
+```bash
+npm test      # vitest unit tests (components + shared match loader)
+npm run e2e   # Playwright smoke test: landing -> dashboard -> task completion
+```
+
+The E2E test runs the real Vite dev server with a route-mocked backend and a pre-seeded Supabase session, so it needs no credentials. CI (`.github/workflows/ci.yml`) runs ruff + pytest for the backend and eslint + vitest + build + Playwright for the frontend on every push.
 
 ## Authenticated API
 

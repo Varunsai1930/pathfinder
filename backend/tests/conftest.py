@@ -2,12 +2,13 @@
 
 import warnings
 
+# P1-5: silence Starlette's httpx deprecation until httpx2 is adopted (keeps pytest 0 warnings).
+# Must run before the fastapi.testclient import below, which triggers the warning.
+warnings.filterwarnings("ignore", message="Using `httpx` with `starlette.testclient` is deprecated")
+warnings.filterwarnings("ignore", category=UserWarning)
+
 import pytest
 from fastapi.testclient import TestClient
-
-# P1-5: silence Starlette's httpx deprecation until httpx2 is adopted (keeps pytest 0 warnings)
-warnings.filterwarnings("ignore", message="Using `httpx`.*", category=DeprecationWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
 
 from app.auth import get_current_user
 from app.main import app

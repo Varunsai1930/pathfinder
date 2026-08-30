@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import HTTPException, status
 import httpx
+from fastapi import HTTPException, status
 
 from app.catalog.loader import get_catalog
 from app.config import Settings
@@ -63,7 +63,7 @@ def task_states_for_roadmap(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error while fetching roadmap tasks.",
-            )
+            ) from exc
 
     return {
         task["milestone_id"]: task
@@ -136,12 +136,14 @@ def _apply_feedback_skill_promotion(
         if upgraded:
             stored["skill_confidence"] = sc
             # Profile content changed: invalidate version-stamped caches (match results).
-            stored["updated_at"] = datetime.now(timezone.utc).isoformat()
+            stored["updated_at"] = datetime.now(UTC).isoformat()
         # Build snapshot for UI — recompute implied readiness increment
         return {
             "upgraded_skills": upgraded,
             "milestone_id": milestone_id,
-            "message": f"Feedback loop: {', '.join(upgraded)} promoted to practised" if upgraded else "No new skills promoted",
+            "message": (
+                f"Feedback loop: {', '.join(upgraded)} promoted to practised" if upgraded else "No new skills promoted"
+            ),
         }
 
     # Supabase path — try to patch profile row if present
@@ -171,7 +173,7 @@ def _apply_feedback_skill_promotion(
                     json={
                         "skill_confidence": sc,
                         # Profile content changed: invalidate version-stamped caches.
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                     },
                 )
                 if patch.status_code not in (200, 204):
@@ -269,9 +271,9 @@ def create_roadmap_tasks(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error while creating roadmap tasks.",
-            )
+            ) from exc
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for row in task_rows:
         if any(
             stored["roadmap_id"] == roadmap_id and stored["milestone_id"] == row["milestone_id"]
@@ -290,7 +292,11 @@ def create_roadmap_tasks(
 
 def _next_action(tasks: list[dict[str, Any]]) -> NextAction:
     next_task = next(
-        (task for task in sorted(tasks, key=lambda item: _milestone_sequence(item["milestone_id"])) if not task["completed"]),
+        (
+            task
+            for task in sorted(tasks, key=lambda item: _milestone_sequence(item["milestone_id"]))
+            if not task["completed"]
+        ),
         None,
     )
     if next_task is None:
@@ -332,12 +338,16 @@ def update_task_completion(
 
     P2 adaptation: persists telemetry and triggers skill-promotion feedback loop.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     # Validation for telemetry (preserve backward compatibility)
     if time_spent_minutes is not None and not (0 <= time_spent_minutes <= 10080):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="time_spent_minutes must be 0..10080")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="time_spent_minutes must be 0..10080"
+        )
     if quiz_score is not None and not (0 <= quiz_score <= 100):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="quiz_score must be 0..100")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="quiz_score must be 0..100"
+        )
 
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
@@ -396,7 +406,7 @@ def update_task_completion(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error while updating task.",
-            )
+            ) from exc
 
     stored = _in_memory_tasks.get(str(task_id))
     if stored is None or stored["user_id"] != user_id:

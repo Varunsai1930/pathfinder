@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import get_current_user
 from app.catalog.assessment_loader import get_assessment_catalog
@@ -7,6 +8,7 @@ from app.catalog.courses_loader import get_courses_catalog
 from app.catalog.loader import get_catalog
 from app.catalog.models import AssessmentCatalog, Catalog, CourseCatalog
 from app.config import Settings, get_settings
+from app.match_store import load_match_result, persist_match_result
 from app.matching.models import (
     MatchProfile,
     MatchResponse,
@@ -14,7 +16,6 @@ from app.matching.models import (
     ProfileResponse,
 )
 from app.matching.service import match_profile
-from app.match_store import load_match_result, persist_match_result
 from app.personalization import (
     AskQuestionPayload,
     AskQuestionResponse,
@@ -29,6 +30,7 @@ from app.roadmap_models import RoadmapResponse
 from app.roadmap_store import get_roadmap, upsert_roadmap
 from app.task_models import TaskCompletionPayload, TaskUpdateResponse
 from app.task_store import update_task_completion
+from app.text_guard import sanitize_untrusted_text
 
 router = APIRouter(prefix="/api/v1")
 
@@ -115,7 +117,7 @@ def goal_intake(
     hints that deterministic code maps to editable suggestions. The matching
     engine still runs exclusively on the answers the learner confirms.
     """
-    return generate_intake_prefill(payload.goal_text, settings)
+    return generate_intake_prefill(sanitize_untrusted_text(payload.goal_text) or "", settings)
 
 
 @router.post("/profile", response_model=ProfileResponse, tags=["profile"])
@@ -182,13 +184,18 @@ def ask_about_results(
     roadmap = None
     if payload.role_id:
         if payload.role_id not in {recommendation.role_id for recommendation in deterministic_match.recommendations}:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="role_id must be one of your computed results.")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="role_id must be one of your computed results.",
+            )
         try:
             roadmap = get_roadmap(user_id=user_id, role_id=payload.role_id, settings=settings)
         except HTTPException as exc:
             if exc.status_code != status.HTTP_404_NOT_FOUND:
                 raise
-    return answer_grounded_question(payload, deterministic_match, roadmap, settings, goal_text=stored.goal_text)
+    return answer_grounded_question(
+        payload, deterministic_match, roadmap, settings, goal_text=sanitize_untrusted_text(stored.goal_text)
+    )
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskUpdateResponse, tags=["tasks"])

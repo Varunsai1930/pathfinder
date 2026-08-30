@@ -6,9 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import personalization
-from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.main import app
+
 
 def _sample_payload() -> dict:
     return {
@@ -40,21 +40,21 @@ def _sample_payload() -> dict:
 def test_match_authenticated_roundtrip(client: TestClient) -> None:
     client.post("/api/v1/profile", json=_sample_payload())
     response = client.post("/api/v1/match")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "recommendations" in data
-    
+
     recs = data["recommendations"]
     assert len(recs) == 6
-    
+
     for rank, rec in enumerate(recs, start=1):
         assert rec["rank"] == rank
         assert "role_id" in rec
         assert "role_title" in rec
         assert "pathfinder_fit_score" in rec
         assert 0 <= rec["pathfinder_fit_score"] <= 100
-        
+
         breakdown = rec["score_breakdown"]
         assert "interest_alignment" in breakdown
         assert "skill_readiness" in breakdown

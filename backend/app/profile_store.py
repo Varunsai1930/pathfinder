@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException, status
 import httpx
+from fastapi import HTTPException, status
 
 from app.config import Settings
 from app.matching.models import (
@@ -18,6 +18,7 @@ from app.matching.models import (
     SkillConfidence,
     WorkStyleResponses,
 )
+from app.text_guard import sanitize_untrusted_text
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,10 @@ def _get_postgrest_headers(settings: Settings, token: str | None = None) -> dict
     """Build the request headers for Supabase PostgREST requests.
 
     Priority order:
-    1. Caller-provided user token (forwarded JWT) -> apikey: anon_key, Authorization: Bearer <token>
-    2. Service role key from env (SUPABASE_SERVICE_ROLE_KEY) -> apikey: service_role_key, Authorization: Bearer <service_role_key>
+    1. Caller-provided user token (forwarded JWT)
+       -> apikey: anon_key, Authorization: Bearer <token>
+    2. Service role key from env (SUPABASE_SERVICE_ROLE_KEY)
+       -> apikey: service_role_key, Authorization: Bearer <service_role_key>
     3. Anon key as last resort -> apikey: anon_key, Authorization: Bearer <anon_key>
     """
     if token:
@@ -98,12 +101,12 @@ def upsert_profile(
                 if isinstance(payload.constraints.career_certainty, CareerCertainty)
                 else str(payload.constraints.career_certainty)
             ),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
         if payload.goal_text:
             # Absent goal keeps the stored one (PostgREST merge leaves the
             # column untouched when the key is omitted).
-            db_payload["goal_text"] = payload.goal_text
+            db_payload["goal_text"] = sanitize_untrusted_text(payload.goal_text)
 
         try:
             with httpx.Client(timeout=10.0) as client:
@@ -123,16 +126,16 @@ def upsert_profile(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error.",
-            )
+            ) from exc
     else:
         # Local persistence only (tests / Supabase not configured); never mirror
         # production writes into memory, or a long-lived process grows unbounded.
         previous = _in_memory_profiles.get(user_id, {})
         _in_memory_profiles[user_id] = {
             **payload.model_dump(),
-            "goal_text": payload.goal_text or previous.get("goal_text"),
+            "goal_text": sanitize_untrusted_text(payload.goal_text) or previous.get("goal_text"),
             "selected_role_id": previous.get("selected_role_id"),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
     return ProfileResponse(
@@ -140,7 +143,8 @@ def upsert_profile(
         skill_confidence=payload.skill_confidence,
         work_style_responses=payload.work_style_responses,
         constraints=payload.constraints,
-        goal_text=payload.goal_text or (_in_memory_profiles.get(user_id, {}).get("goal_text")),
+        goal_text=sanitize_untrusted_text(payload.goal_text)
+            or (_in_memory_profiles.get(user_id, {}).get("goal_text")),
     )
 
 
@@ -198,7 +202,7 @@ def get_profile(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"Database connection error: {exc}",
-            )
+            ) from exc
 
     if user_id not in _in_memory_profiles:
         raise HTTPException(
@@ -237,7 +241,7 @@ def get_profile_updated_at(user_id: str, settings: Settings) -> str | None:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error.",
-            )
+            ) from exc
         if resp.status_code != 200:
             logger.error("Supabase get failed with status %d: %s", resp.status_code, resp.text)
             raise HTTPException(

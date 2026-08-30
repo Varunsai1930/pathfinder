@@ -41,7 +41,7 @@ def persist_match_result(
         headers = {
             **_get_postgrest_headers(settings),
             "Content-Type": "application/json",
-            "Prefer": "return=minimal",
+            "Prefer": "return=minimal,resolution=merge-duplicates",
         }
         rows = [
             {
@@ -56,11 +56,10 @@ def persist_match_result(
             for recommendation in response.recommendations
         ]
         try:
+            # Single-statement upsert on the (user_id, role_id) unique index
+            # (20260831000000_recommendations_unique.sql) — replaces the old
+            # delete-then-insert round trip.
             with httpx.Client(timeout=10.0) as client:
-                client.delete(
-                    f"{base_url}/rest/v1/recommendations?user_id=eq.{user_id}",
-                    headers=headers,
-                )
                 created = client.post(f"{base_url}/rest/v1/recommendations", headers=headers, json=rows)
             if created.status_code not in (200, 201):
                 logger.warning("Match result persistence failed %d: %s", created.status_code, created.text)

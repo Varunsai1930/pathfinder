@@ -18,7 +18,6 @@ from app.matching.models import (
     SkillConfidence,
 )
 
-
 CONFIDENCE_WEIGHTS = {
     SkillConfidence.NONE: 0.0,
     SkillConfidence.AWARE: 0.3,
@@ -51,7 +50,7 @@ def _scale_response(value: int) -> float:
 
 def _profile_similarity(user_values: list[float], target_values: list[float]) -> float:
     """Return 0–100 similarity using cosine similarity (magnitude-invariant)."""
-    dot = sum(u * t for u, t in zip(user_values, target_values))
+    dot = sum(u * t for u, t in zip(user_values, target_values, strict=False))
     mag_u = math.sqrt(sum(u * u for u in user_values))
     mag_t = math.sqrt(sum(t * t for t in target_values))
     if mag_u == 0.0 or mag_t == 0.0:
@@ -66,14 +65,21 @@ def _normalize_interest_profile(profile: MatchProfile) -> RiasecProfile:
     if supplied_ids != expected_ids:
         missing = sorted(expected_ids - supplied_ids)
         unknown = sorted(supplied_ids - expected_ids)
-        detail = {"message": "Interest responses must include every assessment question exactly once.", "missing": missing, "unknown": unknown}
+        detail = {
+            "message": "Interest responses must include every assessment question exactly once.",
+            "missing": missing,
+            "unknown": unknown,
+        }
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
 
     totals: dict[RiasecDimension, list[int]] = defaultdict(list)
     for question in assessment.interest_questions:
         answer = profile.interest_responses[question.id]
         if not 1 <= answer <= 5:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"{question.id} must be an integer from 1 to 5.")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"{question.id} must be an integer from 1 to 5.",
+            )
         totals[question.dimension].append(answer)
 
     return RiasecProfile(
@@ -167,7 +173,10 @@ def match_profile(profile: MatchProfile) -> MatchResponse:
         for role in get_catalog().roles
     ]
     recommendations.sort(key=lambda recommendation: (-recommendation.pathfinder_fit_score, recommendation.role_id))
-    ranked = [recommendation.model_copy(update={"rank": index}) for index, recommendation in enumerate(recommendations, start=1)]
+    ranked = [
+        recommendation.model_copy(update={"rank": index})
+        for index, recommendation in enumerate(recommendations, start=1)
+    ]
     return MatchResponse(
         normalized_interest_profile=interest_profile,
         normalized_work_style_profile=work_style_profile,

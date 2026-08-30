@@ -38,7 +38,11 @@ def _build_profile(
 # ---------------------------------------------------------------------------
 
 FRONTEND_PROFILE = _build_profile(
-    interest_emphasis={"artistic": 5, "investigative": 4, "social": 4, "conventional": 2, "realistic": 2, "enterprising": 2},
+    interest_emphasis={
+
+        "artistic": 5, "investigative": 4, "social": 4, "conventional": 2, "realistic": 2, "enterprising": 2
+
+    },
     skills={
         "html-css": SkillConfidence.PRACTISED,
         "javascript": SkillConfidence.PRACTISED,
@@ -50,7 +54,9 @@ FRONTEND_PROFILE = _build_profile(
 )
 
 BACKEND_PROFILE = _build_profile(
-    interest_emphasis={"investigative": 5, "conventional": 5, "realistic": 3, "artistic": 1, "social": 2, "enterprising": 2},
+    interest_emphasis={
+        "investigative": 5, "conventional": 5, "realistic": 3, "artistic": 1, "social": 2, "enterprising": 2
+    },
     skills={
         "python": SkillConfidence.PRACTISED,
         "api-design": SkillConfidence.AWARE,
@@ -62,7 +68,9 @@ BACKEND_PROFILE = _build_profile(
 )
 
 DATA_ANALYST_PROFILE = _build_profile(
-    interest_emphasis={"investigative": 5, "conventional": 5, "social": 3, "realistic": 3, "artistic": 3, "enterprising": 3},
+    interest_emphasis={
+        "investigative": 5, "conventional": 5, "social": 3, "realistic": 3, "artistic": 3, "enterprising": 3
+    },
     skills={
         "sql": SkillConfidence.PRACTISED,
         "spreadsheets": SkillConfidence.PROJECT_READY,
@@ -74,7 +82,9 @@ DATA_ANALYST_PROFILE = _build_profile(
 )
 
 CLOUD_DEVOPS_PROFILE = _build_profile(
-    interest_emphasis={"realistic": 5, "investigative": 5, "conventional": 5, "artistic": 1, "social": 2, "enterprising": 2},
+    interest_emphasis={
+        "realistic": 5, "investigative": 5, "conventional": 5, "artistic": 1, "social": 2, "enterprising": 2
+    },
     skills={
         "linux": SkillConfidence.PRACTISED,
         "git": SkillConfidence.PROJECT_READY,
@@ -87,7 +97,9 @@ CLOUD_DEVOPS_PROFILE = _build_profile(
 
 
 DATA_ENGINEER_PROFILE = _build_profile(
-    interest_emphasis={"conventional": 5, "investigative": 4, "realistic": 4, "artistic": 1, "social": 2, "enterprising": 2},
+    interest_emphasis={
+        "conventional": 5, "investigative": 4, "realistic": 4, "artistic": 1, "social": 2, "enterprising": 2
+    },
     skills={
         "sql": SkillConfidence.PRACTISED,
         "python": SkillConfidence.PRACTISED,
@@ -99,7 +111,9 @@ DATA_ENGINEER_PROFILE = _build_profile(
 )
 
 SECURITY_PROFILE = _build_profile(
-    interest_emphasis={"investigative": 5, "realistic": 4, "conventional": 4, "artistic": 1, "social": 2, "enterprising": 2},
+    interest_emphasis={
+        "investigative": 5, "realistic": 4, "conventional": 4, "artistic": 1, "social": 2, "enterprising": 2
+    },
     skills={
         "linux": SkillConfidence.PRACTISED,
         "python": SkillConfidence.PRACTISED,
@@ -142,7 +156,14 @@ def test_representative_profile_ranks_intended_role_first(
 
 @pytest.mark.parametrize(
     "profile",
-    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE, SECURITY_PROFILE, DATA_ENGINEER_PROFILE],
+    [
+        FRONTEND_PROFILE,
+        BACKEND_PROFILE,
+        DATA_ANALYST_PROFILE,
+        CLOUD_DEVOPS_PROFILE,
+        SECURITY_PROFILE,
+        DATA_ENGINEER_PROFILE,
+    ],
     ids=["frontend", "backend", "data-analyst", "cloud-devops", "security", "data-engineer"],
 )
 def test_score_breakdown_reconstructs_total(profile: MatchProfile) -> None:
@@ -160,7 +181,14 @@ def test_score_breakdown_reconstructs_total(profile: MatchProfile) -> None:
 
 @pytest.mark.parametrize(
     "profile",
-    [FRONTEND_PROFILE, BACKEND_PROFILE, DATA_ANALYST_PROFILE, CLOUD_DEVOPS_PROFILE, SECURITY_PROFILE, DATA_ENGINEER_PROFILE],
+    [
+        FRONTEND_PROFILE,
+        BACKEND_PROFILE,
+        DATA_ANALYST_PROFILE,
+        CLOUD_DEVOPS_PROFILE,
+        SECURITY_PROFILE,
+        DATA_ENGINEER_PROFILE,
+    ],
     ids=["frontend", "backend", "data-analyst", "cloud-devops", "security", "data-engineer"],
 )
 def test_confirmed_and_missing_skills_have_zero_overlap(profile: MatchProfile) -> None:

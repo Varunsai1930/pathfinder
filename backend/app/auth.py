@@ -58,7 +58,7 @@ def _decode_jwt(token: str, settings: Settings) -> dict:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired.",
-            )
+            ) from None
         except Exception as exc:
             jwks_error = exc
             _logger.warning(
@@ -78,12 +78,12 @@ def _decode_jwt(token: str, settings: Settings) -> dict:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired.",
-            )
+            ) from None
         except jwt.InvalidTokenError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {exc}",
-            )
+            ) from exc
 
     # --- Neither path succeeded ---
     if jwks_error:

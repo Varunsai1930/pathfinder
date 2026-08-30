@@ -6,7 +6,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import personalization
-from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.main import app
 

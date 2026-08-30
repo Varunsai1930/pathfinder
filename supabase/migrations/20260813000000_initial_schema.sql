@@ -40,6 +40,8 @@ create table public.tasks (
   unique (roadmap_id, task_id)
 );
 
+-- NOTE: enrichment_events is unused by the application — résumé/GitHub
+-- enrichment was descoped. Kept for schema history; no code writes to it.
 create table public.enrichment_events (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

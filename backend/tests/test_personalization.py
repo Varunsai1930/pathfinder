@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC
 from types import SimpleNamespace
 from typing import Any
 
@@ -31,8 +32,12 @@ def _sample_payload() -> dict[str, Any]:
             "enterprising-1": 3, "enterprising-2": 2, "enterprising-3": 1,
             "conventional-1": 5, "conventional-2": 4, "conventional-3": 3,
         },
-        "skill_confidence": {"python": "practised", "javascript": "project-ready", "sql": "aware", "git": "project-ready"},
-        "work_style_responses": {"analytical": 5, "creative": 3, "collaborative": 4, "structured": 4, "systems_oriented": 5},
+        "skill_confidence": {
+            "python": "practised", "javascript": "project-ready", "sql": "aware", "git": "project-ready"
+        },
+        "work_style_responses": {
+            "analytical": 5, "creative": 3, "collaborative": 4, "structured": 4, "systems_oriented": 5
+        },
         "constraints": {"hours_per_week": 15, "target_timeline_weeks": 12, "career_certainty": "deciding"},
     }
 
@@ -40,7 +45,10 @@ def _sample_payload() -> dict[str, Any]:
 def _valid_openrouter_payload(completed_count: int = 0) -> dict[str, Any]:
     milestones = _weekly_plan_for(ROLE_ID)
     return {
-        "fit_explanation": "This role reflects the supplied score breakdown. Address the listed core skill gaps through the fixed weekly milestones.",
+        "fit_explanation": (
+            "This role reflects the supplied score breakdown. "
+            "Address the listed core skill gaps through the fixed weekly milestones."
+        ),
         "adaptation_note": (
             f"You have completed {completed_count} of 5 milestones; next up is Week {completed_count + 1}."
             if completed_count
@@ -100,9 +108,9 @@ def _recommendation() -> CareerRecommendation:
 
 
 def _roadmap(completed: int = 0) -> RoadmapResponse:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     weekly_plan = _weekly_plan_for(ROLE_ID)
     for item in weekly_plan[:completed]:
         item.completed = True
@@ -237,7 +245,7 @@ def test_catalog_fields_never_change_under_llm_output(
         base, _recommendation(), _constraints(), configured_openrouter
     )
 
-    for original, personalized_item in zip(base.weekly_plan, result.weekly_plan):
+    for original, personalized_item in zip(base.weekly_plan, result.weekly_plan, strict=False):
         assert personalized_item.title == original.title
         assert personalized_item.objective == original.objective
         assert personalized_item.skills == original.skills
@@ -315,7 +323,10 @@ def test_verbatim_title_objective_is_replaced(
     """If model lazily outputs '{title}: {objective}', personalized pacing replaces it."""
     milestones = _weekly_plan_for(ROLE_ID)
     lazy_payload = {
-        "fit_explanation": "This role reflects the supplied score breakdown. Address the listed core skill gaps through the fixed weekly milestones.",
+        "fit_explanation": (
+            "This role reflects the supplied score breakdown. "
+            "Address the listed core skill gaps through the fixed weekly milestones."
+        ),
         "adaptation_note": "You have completed 1 of 5 milestones; next up is Week 2.",
         "weekly_focus": [
             {"milestone_id": item.milestone_id, "personalized_focus": f"{item.title}: {item.objective}"}
@@ -328,7 +339,7 @@ def test_verbatim_title_objective_is_replaced(
         _roadmap(completed=1), _recommendation(), _constraints(), configured_openrouter
     )
 
-    for orig, item in zip(milestones, result.weekly_plan):
+    for orig, item in zip(milestones, result.weekly_plan, strict=False):
         verbatim = f"{orig.title}: {orig.objective}"
         assert item.personalized_focus != verbatim
         assert not item.personalized_focus.startswith(f"{orig.title}:")

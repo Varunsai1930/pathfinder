@@ -4,7 +4,6 @@ from pathlib import Path
 
 from app.catalog.models import Catalog
 
-
 CATALOG_PATH = Path(__file__).with_name("roles.v1.json")
 
 

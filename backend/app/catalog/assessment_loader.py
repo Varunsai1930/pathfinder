@@ -4,7 +4,6 @@ from pathlib import Path
 
 from app.catalog.models import AssessmentCatalog
 
-
 ASSESSMENT_PATH = Path(__file__).with_name("assessment.v1.json")
 
 

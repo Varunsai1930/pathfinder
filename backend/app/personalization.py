@@ -12,7 +12,7 @@ import logging
 import re
 from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 try:  # Keep local deterministic tests usable until dependencies are installed.
     from openai import OpenAI
@@ -20,7 +20,6 @@ except ImportError:  # pragma: no cover - production installs from pyproject.tom
     OpenAI = None  # type: ignore[assignment,misc]
 
 from app.catalog.assessment_loader import get_assessment_catalog
-from app.catalog.models import RiasecDimension
 from app.config import Settings
 from app.matching.models import (
     CareerCertainty,

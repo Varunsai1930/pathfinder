@@ -1,7 +1,6 @@
 """Tests for authenticated profile management (POST /profile and GET /profile)."""
 
 from fastapi.testclient import TestClient
-import pytest
 
 from app.auth import get_current_user
 from app.main import app

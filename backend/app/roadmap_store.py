@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import HTTPException, status
 import httpx
+from fastapi import HTTPException, status
 
 from app.catalog.loader import get_catalog
 from app.config import Settings
 from app.matching.models import MatchProfile
 from app.matching.service import match_profile
+from app.personalization import personalize_roadmap_response
 from app.profile_store import (
     _get_postgrest_headers,
     _in_memory_profiles,
     _sanitize_supabase_url,
     get_profile,
 )
-from app.personalization import personalize_roadmap_response
 from app.roadmap_models import RoadmapResponse, WeeklyPlanItem
 from app.task_store import create_roadmap_tasks, task_states_for_roadmap
 
@@ -167,7 +167,7 @@ def _mark_selected_role(user_id: str, role_id: str, settings: Settings) -> None:
 def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapResponse:
     """Persist a deterministic roadmap with an optional validated LLM display layer."""
     weekly_plan = _weekly_plan_for(role_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Check for existing tasks so that re-personalizing a roadmap with progress
     # immediately sends the real completion state to the LLM.
@@ -182,13 +182,17 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
                 )
                 if resp.status_code == 200 and resp.json():
                     existing_roadmap_id = resp.json()[0]["id"]
-                    existing_tasks = task_states_for_roadmap(user_id=user_id, roadmap_id=existing_roadmap_id, settings=settings)
+                    existing_tasks = task_states_for_roadmap(
+                        user_id=user_id, roadmap_id=existing_roadmap_id, settings=settings
+                    )
         except Exception:
             existing_tasks = {}
     else:
         existing_stored = _in_memory_roadmaps.get((user_id, role_id))
         if existing_stored:
-            existing_tasks = task_states_for_roadmap(user_id=user_id, roadmap_id=existing_stored["id"], settings=settings)
+            existing_tasks = task_states_for_roadmap(
+                user_id=user_id, roadmap_id=existing_stored["id"], settings=settings
+            )
 
     weekly_plan_with_state = [
         item.model_copy(update={
@@ -254,7 +258,7 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error while saving roadmap.",
-            )
+            ) from exc
     else:
         previous = _in_memory_roadmaps.get((user_id, role_id))
         stored_row["id"] = previous["id"] if previous else str(uuid4())
@@ -310,7 +314,7 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database connection error while fetching roadmap.",
-            )
+            ) from exc
 
     stored_row = _in_memory_roadmaps.get((user_id, role_id))
     if stored_row is None:

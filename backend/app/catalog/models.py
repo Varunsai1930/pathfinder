@@ -146,7 +146,7 @@ class RoleDefinition(BaseModel):
         return skills
 
     @model_validator(mode="after")
-    def milestones_reference_known_skills(self) -> "RoleDefinition":
+    def milestones_reference_known_skills(self) -> RoleDefinition:
         known_skills = {skill.id for skill in self.skills}
         unknown = {skill_id for milestone in self.milestones for skill_id in milestone.skills} - known_skills
         if unknown:
