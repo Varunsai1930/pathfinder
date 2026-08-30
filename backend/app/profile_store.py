@@ -10,6 +10,7 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.config import Settings
+from app.http_client import pooled_client
 from app.matching.models import (
     CareerCertainty,
     ProfileConstraints,
@@ -109,7 +110,7 @@ def upsert_profile(
             db_payload["goal_text"] = sanitize_untrusted_text(payload.goal_text)
 
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 resp = client.post(
                     f"{base_url}/rest/v1/profiles",
                     headers=headers,
@@ -155,6 +156,73 @@ def upsert_profile(
     )
 
 
+def _fetch_profile_row(
+    user_id: str,
+    settings: Settings,
+    token: str | None = None,
+) -> dict[str, Any] | None:
+    """Fetch the raw profile row (single PostgREST round-trip), or None if absent."""
+    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
+        base_url = _sanitize_supabase_url(settings.supabase_url)
+        headers = _get_postgrest_headers(settings, token)
+        try:
+            with pooled_client() as client:
+                resp = client.get(
+                    f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}&select=*",
+                    headers=headers,
+                )
+            if resp.status_code == 200:
+                rows = resp.json()
+                return rows[0] if rows else None
+            if resp.status_code == 404:
+                return None
+            logger.error("Supabase get failed with status %d: %s", resp.status_code, resp.text)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error while fetching profile: {resp.text}",
+            )
+        except httpx.RequestError as exc:
+            logger.error("Supabase connection error: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database connection error: {exc}",
+            ) from exc
+
+    stored = _in_memory_profiles.get(user_id)
+    if stored is None:
+        return None
+    constraints = stored.get("constraints") or {}
+    return {
+        "interest_profile": stored.get("interest_responses"),
+        "skill_confidence": stored.get("skill_confidence"),
+        "work_style_profile": stored.get("work_style_responses"),
+        "hours_per_week": constraints.get("hours_per_week"),
+        "target_timeline_weeks": constraints.get("target_timeline_weeks"),
+        "career_certainty": constraints.get("career_certainty"),
+        "goal_text": stored.get("goal_text"),
+        "selected_role_id": stored.get("selected_role_id"),
+        "updated_at": stored.get("updated_at"),
+    }
+
+
+def _profile_from_row(row: dict[str, Any]) -> ProfileResponse:
+    return ProfileResponse(
+        interest_responses=row.get("interest_profile") or {},
+        skill_confidence=row.get("skill_confidence") or {},
+        work_style_responses=WorkStyleResponses(**(row.get("work_style_profile") or {})),
+        constraints=ProfileConstraints(
+            hours_per_week=row.get("hours_per_week"),
+            target_timeline_weeks=row.get("target_timeline_weeks"),
+            career_certainty=CareerCertainty(row.get("career_certainty")),
+        ),
+        goal_text=row.get("goal_text"),
+        selected_role_id=row.get("selected_role_id"),
+    )
+
+
+_NOT_FOUND_DETAIL = "Profile not found. Complete and submit the assessment first."
+
+
 def get_profile(
     user_id: str,
     settings: Settings,
@@ -164,99 +232,31 @@ def get_profile(
 
     Returns 404 if no profile exists for the user.
     """
-    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
-        base_url = _sanitize_supabase_url(settings.supabase_url)
-        headers = _get_postgrest_headers(settings, token)
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.get(
-                    f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}&select=*",
-                    headers=headers,
-                )
-            if resp.status_code == 200:
-                rows = resp.json()
-                if not rows:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Profile not found. Complete and submit the assessment first.",
-                    )
-                row = rows[0]
-                return ProfileResponse(
-                    interest_responses=row.get("interest_profile") or {},
-                    skill_confidence=row.get("skill_confidence") or {},
-                    work_style_responses=WorkStyleResponses(**(row.get("work_style_profile") or {})),
-                    constraints=ProfileConstraints(
-                        hours_per_week=row.get("hours_per_week"),
-                        target_timeline_weeks=row.get("target_timeline_weeks"),
-                        career_certainty=CareerCertainty(row.get("career_certainty")),
-                    ),
-                    goal_text=row.get("goal_text"),
-                    selected_role_id=row.get("selected_role_id"),
-                )
-            elif resp.status_code == 404:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Profile not found. Complete and submit the assessment first.",
-                )
-            else:
-                logger.error("Supabase get failed with status %d: %s", resp.status_code, resp.text)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Database error while fetching profile: {resp.text}",
-                )
-        except httpx.RequestError as exc:
-            logger.error("Supabase connection error: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Database connection error: {exc}",
-            ) from exc
-
-    if user_id not in _in_memory_profiles:
+    row = _fetch_profile_row(user_id, settings, token)
+    if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found. Complete and submit the assessment first.",
+            detail=_NOT_FOUND_DETAIL,
         )
-
-    stored = _in_memory_profiles[user_id]
-    return ProfileResponse(
-        interest_responses=stored["interest_responses"],
-        skill_confidence=stored["skill_confidence"],
-        work_style_responses=WorkStyleResponses(**(stored["work_style_responses"])),
-        constraints=ProfileConstraints(**(stored["constraints"])),
-        goal_text=stored.get("goal_text"),
-        selected_role_id=stored.get("selected_role_id"),
-    )
+    return _profile_from_row(row)
 
 
-def get_profile_updated_at(user_id: str, settings: Settings) -> str | None:
-    """Return the profile row's updated_at — the version stamp for cached results.
+def get_profile_with_updated_at(
+    user_id: str,
+    settings: Settings,
+    token: str | None = None,
+) -> tuple[ProfileResponse, str | None]:
+    """Profile plus its updated_at version stamp, from a single query.
 
-    Callers pair this with the value stored alongside a persisted match to
-    detect whether the profile changed since that match was computed. Returns
-    None when no profile row exists; callers surface 404 via get_profile.
+    The /match endpoints need both the profile and the stamp that detects a
+    stale cache; fetching them separately paid two round-trips for the same
+    row (select=* already carries updated_at). Raises the same 404 as
+    get_profile when no profile exists.
     """
-    if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
-        base_url = _sanitize_supabase_url(settings.supabase_url)
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.get(
-                    f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}&select=updated_at",
-                    headers=_get_postgrest_headers(settings),
-                )
-        except httpx.RequestError as exc:
-            logger.error("Supabase connection error: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database connection error.",
-            ) from exc
-        if resp.status_code != 200:
-            logger.error("Supabase get failed with status %d: %s", resp.status_code, resp.text)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error while fetching profile: {resp.text}",
-            )
-        rows = resp.json()
-        return rows[0].get("updated_at") if rows else None
-
-    stored = _in_memory_profiles.get(user_id)
-    return stored.get("updated_at") if stored else None
+    row = _fetch_profile_row(user_id, settings, token)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_NOT_FOUND_DETAIL,
+        )
+    return _profile_from_row(row), row.get("updated_at")

@@ -103,7 +103,7 @@ From `backend/` with the virtualenv active:
 pytest
 ```
 
-115 tests, zero warnings (one additional test is skipped unless `OPENROUTER_API_KEY` is set; it exercises the live LLM pipeline). They cover catalog loading, representative-profile matching for all six roles, the goal-text injection guard, profile/match endpoints, and roadmap/task persistence.
+125 tests, zero warnings (one additional test is skipped unless `OPENROUTER_API_KEY` is set; it exercises the live LLM pipeline). They cover catalog loading, representative-profile matching for all six roles, the goal-text injection guard, profile/match endpoints, and roadmap/task persistence.
 
 From `frontend/`:
 

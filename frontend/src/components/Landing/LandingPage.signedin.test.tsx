@@ -12,6 +12,12 @@ vi.mock('../../lib/supabase', () => ({
   },
 }))
 
+// The component gates the deferred supabase import behind config.hasSupabaseAuth;
+// test env has no VITE_SUPABASE_URL, so force the gate open for this test.
+vi.mock('../../lib/config', () => ({
+  config: { hasSupabaseAuth: true, apiUrl: 'http://localhost:8000' },
+}))
+
 import { LandingPage } from './LandingPage'
 
 const noop = () => {}

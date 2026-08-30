@@ -25,7 +25,7 @@ from app.personalization import (
     generate_intake_prefill,
     personalize_match_response,
 )
-from app.profile_store import get_profile, get_profile_updated_at, upsert_profile
+from app.profile_store import get_profile, get_profile_with_updated_at, upsert_profile
 from app.roadmap_models import RoadmapResponse
 from app.roadmap_store import get_roadmap, upsert_roadmap
 from app.task_models import TaskCompletionPayload, TaskUpdateResponse
@@ -74,8 +74,8 @@ def match_career_paths(
     template explanations never evict personalized ones from the cache that
     Results serves.
     """
-    stored = get_profile(user_id=user_id, settings=settings)
-    profile_updated_at = get_profile_updated_at(user_id=user_id, settings=settings)
+    # One query for both the profile and its version stamp (they are the same row).
+    stored, profile_updated_at = get_profile_with_updated_at(user_id=user_id, settings=settings)
     profile = MatchProfile(
         interest_responses=stored.interest_responses,
         skill_confidence=stored.skill_confidence,
@@ -101,10 +101,10 @@ def latest_match(
     Clients should respond to the 404 by POSTing /match once — never
     recompute silently on navigation.
     """
-    get_profile(user_id=user_id, settings=settings)
+    _, profile_updated_at = get_profile_with_updated_at(user_id=user_id, settings=settings)
     cached = load_match_result(
         user_id=user_id,
-        profile_updated_at=get_profile_updated_at(user_id=user_id, settings=settings),
+        profile_updated_at=profile_updated_at,
         settings=settings,
     )
     if cached is None:

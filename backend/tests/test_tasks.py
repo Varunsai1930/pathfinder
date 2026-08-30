@@ -5,11 +5,22 @@ from fastapi.testclient import TestClient
 from app.auth import get_current_user
 from app.main import app
 from app.roadmap_store import _in_memory_roadmaps
-from app.task_store import task_ids_for_roadmap_for_test
+from app.task_store import _in_memory_tasks, _milestone_sequence
 
 USER_A_ID = "11111111-1111-1111-1111-111111111111"
 USER_B_ID = "22222222-2222-2222-2222-222222222222"
 ROLE_ID = "frontend-developer"
+
+
+def task_ids_for_roadmap_for_test(user_id: str, roadmap_id: str) -> list[str]:
+    """Ordered local task IDs — moved here from app.task_store (test-only)."""
+    return [
+        task_id
+        for task_id, row in sorted(
+            _in_memory_tasks.items(), key=lambda item: _milestone_sequence(item[1]["milestone_id"])
+        )
+        if row["user_id"] == user_id and row["roadmap_id"] == roadmap_id
+    ]
 
 
 def _create_task_ids(client: TestClient, user_id: str = USER_A_ID) -> list[str]:

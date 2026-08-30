@@ -2985,6 +2985,13 @@ button:disabled {
 }
 
 /* Conversational goal intake (assessment step 1) */
+/* Suspense fallback while a lazy route chunk loads. */
+.route-loading {
+  display: grid;
+  place-items: center;
+  padding: 5rem 1rem;
+}
+
 /* Drafting status for the conversational goal intake (LLM round-trip). */
 .intake-status {
   display: flex;

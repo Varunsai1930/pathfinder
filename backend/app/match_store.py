@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.config import Settings
+from app.http_client import pooled_client
 from app.matching.models import MatchResponse
 from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
 
@@ -62,7 +63,7 @@ def persist_match_result(
             # explicitly: PostgREST otherwise targets the surrogate id PK,
             # which never conflicts, so a second write would 409 and the
             # cache would stay write-once per user.
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 created = client.post(
                     f"{base_url}/rest/v1/recommendations?on_conflict=user_id,role_id",
                     headers=headers,
@@ -89,7 +90,7 @@ def load_match_result(
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 resp = client.get(
                     f"{base_url}/rest/v1/recommendations?user_id=eq.{user_id}&select=score_breakdown&limit=1",
                     headers=_get_postgrest_headers(settings),

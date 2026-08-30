@@ -14,6 +14,7 @@ from fastapi import HTTPException, status
 
 from app.catalog.loader import get_catalog
 from app.config import Settings
+from app.http_client import pooled_client
 from app.matching.models import MatchProfile
 from app.matching.service import match_profile
 from app.personalization import personalize_roadmap_response
@@ -247,7 +248,7 @@ def _mark_selected_role(user_id: str, role_id: str, settings: Settings) -> None:
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 client.patch(
                     f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}",
                     headers={
@@ -276,7 +277,7 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 resp = client.get(
                     f"{base_url}/rest/v1/roadmaps?user_id=eq.{user_id}&role_id=eq.{role_id}&select=id",
                     headers=_get_postgrest_headers(settings),
@@ -337,7 +338,7 @@ def upsert_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRes
             "Prefer": "resolution=merge-duplicates,return=representation",
         }
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 response = client.post(
                     f"{base_url}/rest/v1/roadmaps?on_conflict=user_id,role_id",
                     headers=headers,
@@ -401,7 +402,7 @@ def get_roadmap(user_id: str, role_id: str, settings: Settings) -> RoadmapRespon
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 response = client.get(
                     f"{base_url}/rest/v1/roadmaps?user_id=eq.{user_id}&role_id=eq.{role_id}&select=*",
                     headers=_get_postgrest_headers(settings),

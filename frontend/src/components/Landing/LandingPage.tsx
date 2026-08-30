@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadMatch, ProfileMissingError } from '../../lib/api'
-import { supabase } from '../../lib/supabase'
+import { config } from '../../lib/config'
 
 interface TopPath {
   role_id: string
@@ -40,12 +40,14 @@ function useTopPath(userEmail: string | null): TopPath | null {
   const settledRef = useRef(false)
 
   useEffect(() => {
-    if (settledRef.current || !supabase) return
-    const client = supabase
+    if (settledRef.current || !config.hasSupabaseAuth) return
     let cancelled = false
 
     const load = async () => {
       try {
+        // Deferred import: keeps the Supabase SDK chunk out of the first paint.
+        const { supabase: client } = await import('../../lib/supabase')
+        if (cancelled || !client) return
         const { data: sessionData } = await client.auth.getSession()
         const token = sessionData?.session?.access_token
         if (!token) return

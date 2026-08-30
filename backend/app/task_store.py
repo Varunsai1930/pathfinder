@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 
 from app.catalog.loader import get_catalog
 from app.config import Settings
+from app.http_client import pooled_client
 from app.profile_store import _get_postgrest_headers, _sanitize_supabase_url
 from app.roadmap_models import WeeklyPlanItem
 from app.task_models import NextAction, TaskResponse, TaskUpdateResponse
@@ -26,17 +27,6 @@ def reset_in_memory_task_store() -> None:
     _in_memory_tasks.clear()
 
 
-def task_ids_for_roadmap_for_test(user_id: str, roadmap_id: str) -> list[str]:
-    """Return ordered local task IDs for endpoint tests."""
-    return [
-        task_id
-        for task_id, row in sorted(
-            _in_memory_tasks.items(), key=lambda item: _milestone_sequence(item[1]["milestone_id"])
-        )
-        if row["user_id"] == user_id and row["roadmap_id"] == roadmap_id
-    ]
-
-
 def task_states_for_roadmap(
     user_id: str,
     roadmap_id: str,
@@ -46,7 +36,7 @@ def task_states_for_roadmap(
     if settings.supabase_url and (settings.supabase_service_role_key or settings.supabase_anon_key):
         base_url = _sanitize_supabase_url(settings.supabase_url)
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 response = client.get(
                     f"{base_url}/rest/v1/tasks?roadmap_id=eq.{roadmap_id}&user_id=eq.{user_id}&select=id,milestone_id,completed,time_spent_minutes,quiz_score",
                     headers=_get_postgrest_headers(settings),
@@ -152,7 +142,7 @@ def _apply_feedback_skill_promotion(
 
         base_url = _sanitize_supabase_url(settings.supabase_url)
         headers = _get_postgrest_headers(settings)
-        with httpx.Client(timeout=10.0) as client:
+        with pooled_client() as client:
             resp = client.get(
                 f"{base_url}/rest/v1/profiles?user_id=eq.{user_id}&select=skill_confidence",
                 headers=headers,
@@ -253,7 +243,7 @@ def create_roadmap_tasks(
             "Prefer": "resolution=ignore-duplicates",
         }
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 response = client.post(
                     f"{base_url}/rest/v1/tasks?on_conflict=roadmap_id,milestone_id",
                     headers=headers,
@@ -366,7 +356,7 @@ def update_task_completion(
         if quiz_score is not None:
             patch_payload["quiz_score"] = quiz_score
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with pooled_client() as client:
                 response = client.patch(
                     f"{base_url}/rest/v1/tasks?id=eq.{task_id}&user_id=eq.{user_id}",
                     headers=headers,

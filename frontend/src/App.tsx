@@ -1,19 +1,48 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { AssessmentPage } from './components/Assessment/AssessmentPage'
-import { ChatWidget } from './components/Chat/ChatWidget'
-import { DashboardRoute } from './components/Dashboard/DashboardRoute'
 import { LandingPage } from './components/Landing/LandingPage'
-import { LoginPage } from './components/Login/LoginPage'
-import { SignUpPage } from './components/Login/SignUpPage'
-import { ProgressPage } from './components/Progress/ProgressPage'
-import { QuestionsPage } from './components/Questions/QuestionsPage'
-import { ResultsPage } from './components/Results/ResultsPage'
+import { config } from './lib/config'
 import type { MatchResponse } from './lib/api'
-import { supabase } from './lib/supabase'
+
+/* Route-level code splitting: Landing (the first paint) stays eager; every
+   other surface — and the floating chat — loads on demand, which also defers
+   the ~217 kB Supabase SDK chunk until a signed-in surface actually needs it
+   (App and Landing reach it through the dynamic imports below). */
+const AssessmentPage = lazy(() =>
+  import('./components/Assessment/AssessmentPage').then((m) => ({ default: m.AssessmentPage }))
+)
+const ChatWidget = lazy(() =>
+  import('./components/Chat/ChatWidget').then((m) => ({ default: m.ChatWidget }))
+)
+const DashboardRoute = lazy(() =>
+  import('./components/Dashboard/DashboardRoute').then((m) => ({ default: m.DashboardRoute }))
+)
+const LoginPage = lazy(() =>
+  import('./components/Login/LoginPage').then((m) => ({ default: m.LoginPage }))
+)
+const SignUpPage = lazy(() =>
+  import('./components/Login/SignUpPage').then((m) => ({ default: m.SignUpPage }))
+)
+const ProgressPage = lazy(() =>
+  import('./components/Progress/ProgressPage').then((m) => ({ default: m.ProgressPage }))
+)
+const QuestionsPage = lazy(() =>
+  import('./components/Questions/QuestionsPage').then((m) => ({ default: m.QuestionsPage }))
+)
+const ResultsPage = lazy(() =>
+  import('./components/Results/ResultsPage').then((m) => ({ default: m.ResultsPage }))
+)
 
 interface ResultsLocationState {
   matchData?: MatchResponse
+}
+
+function RouteLoading() {
+  return (
+    <div className="route-loading" role="status" aria-live="polite">
+      <div className="loading-spinner" />
+    </div>
+  )
 }
 
 function ResultsRoute() {
@@ -44,26 +73,36 @@ function App() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!supabase) return
+    if (!config.hasSupabaseAuth) return
+    let cancelled = false
+    let unsubscribe: (() => void) | undefined
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email)
-      }
-    })
+    // Deferred import: auth restore needs the SDK, but not before first paint.
+    void import('./lib/supabase').then(({ supabase }) => {
+      if (cancelled || !supabase) return
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user?.email ?? null)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!cancelled && session?.user?.email) {
+          setUserEmail(session.user.email)
+        }
+      })
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUserEmail(session?.user?.email ?? null)
+      })
+      unsubscribe = () => subscription.unsubscribe()
     })
 
     return () => {
-      subscription.unsubscribe()
+      cancelled = true
+      unsubscribe?.()
     }
   }, [])
 
   async function handleSignOut() {
+    const { supabase } = await import('./lib/supabase')
     if (!supabase) return
     await supabase.auth.signOut()
     setUserEmail(null)
@@ -72,7 +111,8 @@ function App() {
 
   return (
     <>
-      <Routes>
+      <Suspense fallback={<RouteLoading />}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -164,8 +204,11 @@ function App() {
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <ChatWidget />
+        </Routes>
+      </Suspense>
+      <Suspense fallback={null}>
+        <ChatWidget />
+      </Suspense>
     </>
   )
 }
