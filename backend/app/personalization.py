@@ -173,6 +173,12 @@ def _get_openai_client(settings: Settings) -> Any | None:
         api_key=settings.openrouter_api_key,
         base_url="https://openrouter.ai/api/v1",
         timeout=25.0,
+        # SDK default is 2 retries; each attempt can burn the full 25s timeout,
+        # so the default allowed a ~76s hang before the deterministic fallback.
+        # A hard ~25s ceiling beats absorbing transient blips via retry: the
+        # deterministic fallback is fast and always correct, and a live demo
+        # should never visibly hang.
+        max_retries=0,
     )
     _openai_client_cache = (OpenAI, client)
     return client
