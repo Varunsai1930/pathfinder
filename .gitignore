@@ -39,3 +39,7 @@ action.txt
 
 # Local deck exports
 PathFinder_updated*.pdf
+
+# Local demo/prep docs (not part of the app)
+DEMO_VIDEO_SCRIPT.md
+Pathfinder_Demo_Script_v3.md
