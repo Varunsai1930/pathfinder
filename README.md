@@ -128,7 +128,7 @@ All of the following require a Supabase JWT in `Authorization: Bearer <token>`. 
 - `PATCH /api/v1/tasks/{task_id}` — toggle a task and return the next action
 - `POST /api/v1/questions` — answer a short question from the caller's match data and, optionally, an owned roadmap (`question`, optional `role_id`)
 
-Compatibility aliases also exist at `/profile` and `/roadmaps/{role_id}`.
+Compatibility aliases also exist at `/profile` and `/roadmaps/{role_id}`; they are deprecated (marked in the OpenAPI schema, and every hit logs a `pathfinder.deprecations` warning) — use the `/api/v1` equivalents.
 
 ## Environment files
 
