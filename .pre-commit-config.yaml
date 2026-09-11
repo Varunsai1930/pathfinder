@@ -1,0 +1,25 @@
+# Standardized local hooks: Python (ruff) for backend/, ESLint for frontend/.
+# Install once with:  pre-commit install
+# Run everywhere with: pre-commit run --all-files
+repos:
+  # Backend (Python): lint + format via ruff, driven by backend/pyproject.toml.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
+    hooks:
+      - id: ruff
+        name: ruff (backend)
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        name: ruff-format (backend)
+        files: ^backend/
+
+  # Frontend (TS/React): lint via the project's eslint.config.js.
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint (frontend)
+        entry: bash -c 'cd frontend && npx eslint --max-warnings=0'
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
