@@ -29,6 +29,7 @@ except ImportError:  # pragma: no cover - production installs from pyproject.tom
 
 from app.catalog.assessment_loader import get_assessment_catalog
 from app.config import Settings
+from app.llm_telemetry import log_llm_event
 from app.matching.models import (
     CareerCertainty,
     CareerRecommendation,
@@ -263,9 +264,12 @@ def _structured_completion(
     or the circuit breaker is open — does this return None, which callers
     translate into the deterministic fallback content.
     """
+    operation = model_type.__name__
     if not settings.openrouter_api_key or OpenAI is None:
+        log_llm_event("llm_fallback_triggered", operation=operation, reason="no_api_key")
         return None
     if _circuit_is_open():
+        log_llm_event("llm_fallback_triggered", operation=operation, reason="circuit_open")
         return None
     models = settings.openrouter_model_list
     # Split the total budget evenly across the chain so one slow model cannot
@@ -273,9 +277,11 @@ def _structured_completion(
     per_attempt_timeout = settings.openrouter_timeout_seconds / len(models)
     provider_failed = False
     last_reason = "provider_error"
+    started = time.monotonic()
     try:
         client = _get_openai_client(settings, per_attempt_timeout)
         if client is None:
+            log_llm_event("llm_fallback_triggered", operation=operation, reason="no_api_key")
             return None
         for model in models:
             try:
@@ -316,7 +322,7 @@ def _structured_completion(
                     lines = lines[:-1]
                 cleaned = "\n".join(lines).strip()
             try:
-                return model_type.model_validate_json(cleaned)
+                validated = model_type.model_validate_json(cleaned)
             except ValidationError:
                 # Provider responded but broke the schema: not a transport
                 # outage, so this does not count toward the circuit breaker.
@@ -325,10 +331,24 @@ def _structured_completion(
                 )
                 last_reason = "validation_error"
                 continue
+            log_llm_event(
+                "llm_success",
+                operation=operation,
+                model=model,
+                latency_ms=round((time.monotonic() - started) * 1000),
+            )
+            return validated
+        log_llm_event(
+            "llm_fallback_triggered",
+            operation=operation,
+            reason=last_reason,
+            attempted_models=len(models),
+        )
         return None
     except Exception as exc:  # Client construction or an unexpected SDK failure.
         provider_failed = True
         logger.info("Grounded LLM generation fell back to deterministic content: %s", exc)
+        log_llm_event("llm_fallback_triggered", operation=operation, reason="provider_error")
         return None
     finally:
         _record_circuit_outcome(provider_failed=provider_failed)
@@ -405,6 +425,7 @@ def personalize_match_response(
     by_id = {item.role_id: item.fit_explanation for item in generated.explanations}
     if set(by_id) != set(allowed_ids) or len(by_id) != len(allowed_ids):
         logger.info("LLM fit explanations included an unknown, missing, or duplicate role")
+        log_llm_event("llm_fallback_triggered", operation="FitExplanationBatch", reason="ungrounded_role_ids")
         return match.model_copy(update={"recommendations": fallback_recommendations, "generation_mode": "fallback"})
     personalized = [rec.model_copy(update={"fit_explanation": by_id[rec.role_id]}) for rec in match.recommendations]
     return match.model_copy(update={"recommendations": personalized, "generation_mode": "llm"})
@@ -617,6 +638,7 @@ def personalize_roadmap_response(
     expected_ids = [item.milestone_id for item in roadmap.weekly_plan]
     if sorted(focus.milestone_id for focus in generated.weekly_focus) != sorted(expected_ids):
         logger.info("LLM roadmap focus referenced an unknown, missing, or duplicate milestone")
+        log_llm_event("llm_fallback_triggered", operation="RoadmapPersonalization", reason="ungrounded_milestone_ids")
         return fallback
 
     generated_prose = " ".join(
@@ -624,6 +646,7 @@ def personalize_roadmap_response(
     )
     if _attributes_unsupplied_skills(generated_prose, recommendation.confirmed_skills):
         logger.info("LLM roadmap text attributed unconfirmed skills or traits; using deterministic fallback")
+        log_llm_event("llm_fallback_triggered", operation="RoadmapPersonalization", reason="unconfirmed_skill_attribution")
         return fallback
     if (
         weeks_needed is not None
@@ -632,6 +655,7 @@ def personalize_roadmap_response(
         and not _mentions_timeline_concern(generated_prose, weeks_needed)
     ):
         logger.info("LLM roadmap text ignored the computed timeline mismatch; using deterministic fallback")
+        log_llm_event("llm_fallback_triggered", operation="RoadmapPersonalization", reason="timeline_dishonesty")
         return fallback
 
     focus_by_id = {focus.milestone_id: focus.personalized_focus for focus in generated.weekly_focus}
@@ -771,6 +795,7 @@ def answer_grounded_question(
     allowed_milestones = {item.milestone_id for item in roadmap.weekly_plan} if roadmap else set()
     if not set(generated.referenced_role_ids).issubset(allowed_roles) or not set(generated.referenced_milestone_ids).issubset(allowed_milestones):
         logger.info("LLM Q&A answer included an unowned role or milestone")
+        log_llm_event("llm_fallback_triggered", operation="GroundedAnswer", reason="unowned_reference_ids")
         return AskQuestionResponse(answer=fallback, generation_mode="fallback")
     return AskQuestionResponse(answer=generated.answer, generation_mode="llm")
 
@@ -890,6 +915,7 @@ def generate_intake_prefill(goal_text: str, settings: Settings) -> IntakeRespons
         # nothing is force-fit or fabricated. The client shows a specific
         # message naming the supported paths instead of the generic one.
         logger.info("Intake goal lies outside the supported paths; declining pre-fill")
+        log_llm_event("llm_fallback_triggered", operation="GoalExtraction", reason="unsupported_goal_declined")
         return IntakeResponse(generation_mode="fallback", decline_reason="unsupported_goal")
 
     known_skill_ids = {skill.id for skill in assessment.skills}

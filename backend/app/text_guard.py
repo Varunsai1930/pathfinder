@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from app.llm_telemetry import log_llm_event
+
 _MAX_LEN = 2000
 
 # Instruction-shaped phrases that must never survive into a prompt or a quote.
@@ -38,6 +40,11 @@ _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u2028\u2029\u202a-\u202e]")
 
 
+def log_prompt_redaction(redacted_matches: int) -> None:
+    """Emit the injection-redaction event; never log the untrusted text itself."""
+    log_llm_event("prompt_injection_redacted", redacted_matches=redacted_matches)
+
+
 def sanitize_untrusted_text(text: str | None, max_length: int = _MAX_LEN) -> str | None:
     """Return ``text`` with injection patterns redacted and control chars stripped.
 
@@ -63,8 +70,10 @@ def sanitize_untrusted_text(text: str | None, max_length: int = _MAX_LEN) -> str
     spaced = _CONTROL_RE.sub(" ", _INVISIBLE_RE.sub(" ", cleaned))
     if _INJECTION_RE.search(compact):
         cleaned = _INJECTION_RE.sub("[redacted]", compact)
+        log_prompt_redaction(len(_INJECTION_RE.findall(compact)))
     elif _INJECTION_RE.search(spaced):
         cleaned = _INJECTION_RE.sub("[redacted]", spaced)
+        log_prompt_redaction(len(_INJECTION_RE.findall(spaced)))
     else:
         cleaned = compact
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
