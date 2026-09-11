@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from app.auth import get_current_user
 from app.main import app
 from app.match_store import reset_in_memory_match_store
+from app.personalization import reset_llm_circuit_for_tests
 from app.profile_store import reset_in_memory_store
 from app.roadmap_store import reset_in_memory_roadmap_store
 from app.task_store import reset_in_memory_task_store
@@ -31,6 +32,7 @@ def _override_auth():
     reset_in_memory_roadmap_store()
     reset_in_memory_task_store()
     reset_in_memory_match_store()
+    reset_llm_circuit_for_tests()
     app.dependency_overrides[get_current_user] = _fake_current_user
     yield
     app.dependency_overrides.pop(get_current_user, None)
@@ -38,6 +40,7 @@ def _override_auth():
     reset_in_memory_roadmap_store()
     reset_in_memory_task_store()
     reset_in_memory_match_store()
+    reset_llm_circuit_for_tests()
 
 
 @pytest.fixture()

@@ -10,14 +10,22 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+import time
 from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 try:  # Keep local deterministic tests usable until dependencies are installed.
+    from openai import APIConnectionError as apiconn
+    from openai import APIStatusError as apistatus
+    from openai import APITimeoutError as apitimeout
     from openai import OpenAI
 except ImportError:  # pragma: no cover - production installs from pyproject.toml
     OpenAI = None  # type: ignore[assignment,misc]
+    apiconn = None  # type: ignore[assignment,misc]
+    apistatus = None  # type: ignore[assignment,misc]
+    apitimeout = None  # type: ignore[assignment,misc]
 
 from app.catalog.assessment_loader import get_assessment_catalog
 from app.config import Settings
@@ -150,7 +158,7 @@ class AskQuestionResponse(_StrictModel):
 _openai_client_cache: tuple[Any, Any] | None = None
 
 
-def _get_openai_client(settings: Settings) -> Any | None:
+def _get_openai_client(settings: Settings, timeout: float) -> Any | None:
     """Reuse one OpenAI SDK client across LLM calls.
 
     The client is thread-safe and holds its own connection pool, so a fresh
@@ -167,65 +175,163 @@ def _get_openai_client(settings: Settings) -> Any | None:
         _openai_client_cache is not None
         and _openai_client_cache[0] is OpenAI
         and getattr(_openai_client_cache[1], "api_key", None) == settings.openrouter_api_key
+        and getattr(_openai_client_cache[1], "timeout", None) == timeout
     ):
         return _openai_client_cache[1]
     client = OpenAI(
         api_key=settings.openrouter_api_key,
         base_url="https://openrouter.ai/api/v1",
-        timeout=25.0,
-        # SDK default is 2 retries; each attempt can burn the full 25s timeout,
-        # so the default allowed a ~76s hang before the deterministic fallback.
-        # A hard ~25s ceiling beats absorbing transient blips via retry: the
-        # deterministic fallback is fast and always correct, and a live demo
-        # should never visibly hang.
+        # Hard per-attempt ceiling: the total budget is split evenly across the
+        # model chain by _structured_completion, so a slow primary can never
+        # push /match past the configured wall-clock cap.
+        timeout=timeout,
+        # SDK default is 2 retries; each attempt can burn the full timeout, so
+        # the default allowed a multi-minute hang before the deterministic
+        # fallback. The deterministic fallback is fast and always correct, and
+        # a live demo should never visibly hang.
         max_retries=0,
     )
     _openai_client_cache = (OpenAI, client)
     return client
 
 
+# Lightweight circuit breaker: after CIRCUIT_THRESHOLD consecutive failed
+# chains, skip the provider entirely for CIRCUIT_COOLDOWN_SECONDS and serve
+# the deterministic fallback instantly. Provider failures are the only trips;
+# validation refusals (the provider responded fine) do not trip the breaker.
+_CIRCUIT_THRESHOLD = 3
+_CIRCUIT_COOLDOWN_SECONDS = 60.0
+_circuit_lock = threading.Lock()
+_circuit_failures = 0
+_circuit_opened_at: float | None = None
+
+
+def reset_llm_circuit_for_tests() -> None:
+    """Restore the breaker between tests, mirroring the in-memory store resets."""
+    global _circuit_failures, _circuit_opened_at
+    with _circuit_lock:
+        _circuit_failures = 0
+        _circuit_opened_at = None
+
+
+def _circuit_is_open() -> bool:
+    global _circuit_opened_at, _circuit_failures
+    with _circuit_lock:
+        if _circuit_opened_at is None:
+            return False
+        if time.monotonic() - _circuit_opened_at >= _CIRCUIT_COOLDOWN_SECONDS:
+            # Cooldown elapsed: close the breaker and let one chain through.
+            # A half-open attempt that fails re-opens it for another cooldown.
+            _circuit_failures = 0
+            _circuit_opened_at = None
+            return False
+        return True
+
+
+def _record_circuit_outcome(provider_failed: bool) -> None:
+    with _circuit_lock:
+        global _circuit_failures, _circuit_opened_at
+        if not provider_failed:
+            _circuit_failures = 0
+            _circuit_opened_at = None
+            return
+        _circuit_failures += 1
+        if _circuit_failures >= _CIRCUIT_THRESHOLD:
+            _circuit_opened_at = time.monotonic()
+
+
+def _classify_provider_error(exc: BaseException) -> str:
+    """Map a provider exception to the telemetry reason vocabulary."""
+    if isinstance(exc, TimeoutError) or (apitimeout is not None and isinstance(exc, apitimeout.APITimeoutError)):
+        return "timeout"
+    if apiconn is not None and isinstance(exc, apiconn.APIConnectionError):
+        return "provider_unavailable"
+    if apistatus is not None and isinstance(exc, apistatus.APIStatusError):
+        return "provider_unavailable"
+    if isinstance(exc, json.JSONDecodeError):
+        return "invalid_json"
+    return "provider_error"
+
+
 def _structured_completion(
     model_type: type[_OutputModel], *, system: str, user: str, settings: Settings
 ) -> _OutputModel | None:
-    """Request strict JSON through OpenRouter; swallow every provider failure."""
+    """Request strict JSON through the OpenRouter model chain; swallow every provider failure.
+
+    The configured models are tried in order (primary first, then fallbacks)
+    under one shared time budget. Only when every model fails or times out —
+    or the circuit breaker is open — does this return None, which callers
+    translate into the deterministic fallback content.
+    """
     if not settings.openrouter_api_key or OpenAI is None:
         return None
+    if _circuit_is_open():
+        return None
+    models = settings.openrouter_model_list
+    # Split the total budget evenly across the chain so one slow model cannot
+    # consume the whole ceiling; a single-model chain keeps the full budget.
+    per_attempt_timeout = settings.openrouter_timeout_seconds / len(models)
+    provider_failed = False
+    last_reason = "provider_error"
     try:
-        client = _get_openai_client(settings)
+        client = _get_openai_client(settings, per_attempt_timeout)
         if client is None:
             return None
-        response = client.chat.completions.create(
-            model=settings.openrouter_model,
-            temperature=0.1,
-            max_tokens=4000,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": model_type.__name__.lower(),
-                    "strict": True,
-                    "schema": model_type.model_json_schema(),
-                },
-            },
-        )
-        content = response.choices[0].message.content
-        if not content:
-            return None
-        cleaned = content.strip()
-        if cleaned.startswith("```"):
-            lines = cleaned.splitlines()
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            cleaned = "\n".join(lines).strip()
-        return model_type.model_validate_json(cleaned)
-    except Exception as exc:  # Provider, timeout, rate-limit, JSON, and schema failures all fall back.
+        for model in models:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    temperature=0.1,
+                    max_tokens=4000,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": model_type.__name__.lower(),
+                            "strict": True,
+                            "schema": model_type.model_json_schema(),
+                        },
+                    },
+                )
+            except Exception as exc:  # Timeout, rate limit, transport: try the next model.
+                provider_failed = True
+                last_reason = _classify_provider_error(exc)
+                logger.info("OpenRouter model %s failed (%s); trying fallback", model, last_reason)
+                continue
+            content = response.choices[0].message.content
+            if not content:
+                provider_failed = True
+                last_reason = "empty_response"
+                logger.info("OpenRouter model %s returned no content; trying fallback", model)
+                continue
+            cleaned = content.strip()
+            if cleaned.startswith("```"):
+                lines = cleaned.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                cleaned = "\n".join(lines).strip()
+            try:
+                return model_type.model_validate_json(cleaned)
+            except ValidationError:
+                # Provider responded but broke the schema: not a transport
+                # outage, so this does not count toward the circuit breaker.
+                logger.info(
+                    "OpenRouter model %s returned schema-invalid JSON; trying fallback", model
+                )
+                last_reason = "validation_error"
+                continue
+        return None
+    except Exception as exc:  # Client construction or an unexpected SDK failure.
+        provider_failed = True
         logger.info("Grounded LLM generation fell back to deterministic content: %s", exc)
         return None
+    finally:
+        _record_circuit_outcome(provider_failed=provider_failed)
 
 
 def _fallback_fit_explanation(recommendation: CareerRecommendation) -> str:

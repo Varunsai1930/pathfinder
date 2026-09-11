@@ -180,10 +180,11 @@ def test_successful_openrouter_path_uses_expected_client_and_returns_llm(
     assert captured["client"] == {
         "api_key": "test-key",
         "base_url": "https://openrouter.ai/api/v1",
-        "timeout": 25.0,
+        # Single-model chain: the full budget goes to the one model.
+        "timeout": configured_openrouter.openrouter_timeout_seconds,
         "max_retries": 0,
     }
-    assert captured["request"]["model"] == configured_openrouter.openrouter_model
+    assert captured["request"]["model"] == configured_openrouter.openrouter_model_list[0]
     assert captured["request"]["response_format"]["type"] == "json_schema"
 
 
