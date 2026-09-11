@@ -20,6 +20,10 @@
   --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
   --shadow-accent: 0 4px 20px rgba(37, 99, 235, 0.2);
   --shadow-top-result: 0 16px 40px rgba(37, 99, 235, 0.12);
+  /* AA contrast tokens: text-secondary/accent-success fail 4.5:1 on the
+     muted/tinted surfaces below, so darker variants apply there. */
+  --text-secondary-strong: #475569;
+  --accent-success-strong: #15803D;
 
   font-family: Manrope, system-ui, sans-serif;
   color: var(--text-primary);
@@ -1839,7 +1843,7 @@ button:disabled {
   padding: 12px 14px;
   border-radius: 8px;
   background: var(--bg-muted);
-  color: var(--text-secondary);
+  color: var(--text-secondary-strong);
   font-size: 0.88rem;
   line-height: 1.5;
 }
@@ -1943,7 +1947,7 @@ button:disabled {
 
 .dashboard-milestone--complete .dashboard-week {
   background: var(--accent-success-soft);
-  color: var(--accent-success);
+  color: var(--accent-success-strong);
 }
 
 .dashboard-milestone-content {
@@ -2322,7 +2326,7 @@ button:disabled {
 .dashboard-feedback span {
   flex-shrink: 0;
   font: 700 0.68rem 'DM Mono', monospace;
-  color: var(--accent-success);
+  color: var(--accent-success-strong);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-top: 2px;
@@ -2372,7 +2376,7 @@ button:disabled {
   border-radius: 999px;
   background: var(--bg-muted);
   border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  color: var(--text-secondary-strong);
   font: 600 0.68rem 'DM Mono', monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2410,7 +2414,7 @@ button:disabled {
 
 .learning-stat-sub {
   display: block;
-  color: var(--text-secondary);
+  color: var(--text-secondary-strong);
   font-size: 0.82rem;
   line-height: 1.45;
 }
@@ -2437,7 +2441,7 @@ button:disabled {
   border-radius: 8px;
   background: var(--accent-primary-soft);
   border-left: 3px solid var(--accent-primary);
-  color: var(--text-secondary);
+  color: var(--text-secondary-strong);
   font-size: 0.88rem;
   line-height: 1.5;
 }
@@ -2488,7 +2492,7 @@ button:disabled {
 .telemetry-logged {
   margin: 10px 0 0;
   font-size: 0.82rem;
-  color: var(--accent-success);
+  color: var(--accent-success-strong);
   font-weight: 600;
 }
 

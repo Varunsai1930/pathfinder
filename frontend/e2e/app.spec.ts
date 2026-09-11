@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 /**
@@ -112,6 +113,24 @@ async function mockBackend(page: Page) {
   )
 }
 
+/**
+ * Accessibility audit: zero critical (or serious) axe violations on the two
+ * primary surfaces. Runs against the same fully-rendered, route-mocked pages
+ * as the smoke flow, so it exercises exactly what users see.
+ */
+async function expectNoCriticalA11yViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).analyze()
+  const blocking = results.violations.filter((violation) =>
+    violation.impact === 'critical' || violation.impact === 'serious',
+  )
+  expect(
+    blocking.map(({ id, impact, help }) => `${impact} [${id}]: ${help}`),
+    `Critical/serious accessibility violations:\n${blocking
+      .map((v) => JSON.stringify({ id: v.id, nodes: v.nodes.map((n) => n.target) }))
+      .join('\n')}`,
+  ).toEqual([])
+}
+
 test.beforeEach(async ({ page }) => {
   await mockBackend(page)
   // Pre-seed the Supabase session so the app boots signed-in without OTP.
@@ -131,7 +150,9 @@ test('landing shows the persisted top path for the signed-in user', async ({ pag
   // Landing must read the persisted match, never POST a recompute.
   const matchCalls = (await page.locator('body').evaluate(() => performance.getEntriesByType('resource').map((r) => r.name)))
     .filter((name: string) => name.includes('/api/v1/match'))
-  expect(matchCalls.some((name) => name.toUpperCase().includes('POST'))).toBe(false)
+  expect(matchCalls.some((name: string) => name.toUpperCase().includes('POST'))).toBe(false)
+
+  await expectNoCriticalA11yViolations(page)
 })
 
 test('dashboard renders the roadmap and completing a task fires telemetry', async ({ page }) => {
@@ -148,4 +169,6 @@ test('dashboard renders the roadmap and completing a task fires telemetry', asyn
   // Optimistic update confirmed by the PATCH response shape.
   await expect(page.getByText('Feedback loop: git promoted to practised')).toBeVisible()
   await expect(page.getByText('Next: Milestone 2')).toBeVisible()
+
+  await expectNoCriticalA11yViolations(page)
 })
