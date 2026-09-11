@@ -139,14 +139,14 @@ Never commit populated `.env` files. Copy the templates:
 
 ## Grounded AI guidance
 
-Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses a pinned OpenRouter model (see `openrouter_model` in `backend/app/config.py`) for constrained enhancements:
+Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses an ordered OpenRouter model chain (see `openrouter_models` in `backend/app/config.py`; set `OPENROUTER_MODELS=primary,secondary` to add fallbacks) for constrained enhancements:
 
 - assessment pre-fill hints from a free-text goal (`POST /api/v1/intake`) — the model returns dimension-level hints and deterministic code maps them to editable per-question suggestions;
 - two-to-three sentence fit explanations;
 - a personalized focus and pacing note for the five existing milestones; and
 - a small learner Q&A response based only on that learner's computed match and optional roadmap.
 
-Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs (skill IDs for intake). An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. The model is pinned rather than using an auto-router so evaluation behavior stays reproducible.
+Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs (skill IDs for intake). Resilience is layered: if the primary model times out, errors, or returns schema-invalid JSON, the next model in the chain is tried under a hard shared time budget (`OPENROUTER_TIMEOUT_SECONDS`, default 8s, split across the chain) so `/match` never hangs past the budget; after repeated provider failures a circuit breaker skips OpenRouter entirely for 60s and serves the deterministic fallback instantly. An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. Each of these paths emits a structured JSON telemetry event (`llm_success`, `llm_fallback_triggered` with the reason, `prompt_injection_redacted`) on the `pathfinder.llm` logger.
 
 After adding `OPENROUTER_API_KEY` and deploying the backend, verify that the personalization path is live with an authenticated request; the response must contain `"generation_mode": "llm"`:
 
