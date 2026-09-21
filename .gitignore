@@ -1,45 +1,47 @@
-# Frontend
+# Dependencies & Build Outputs
+node_modules/
 frontend/node_modules/
 frontend/dist/
-frontend/.env.local
-frontend/.env
-frontend/.vercel/
+frontend/test-results/
 
-# Root leftover from local runtimes — never ship this
-/node_modules
-
-# Python
+# Python & Virtual Environments
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
-backend/.env
-backend/.vercel/
+backend/.ruff_cache/
 __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
+.ruff_cache/
 
-# Datasets and submission scratch
-*.csv
-*.png
-*.zip
+# Environment Variables & Secrets (never commit credentials)
+.env*
+frontend/.env
+frontend/.env.local
+backend/.env
+backend/.env.local
 
-# Personal notes that are not part of the product
-ML_Course_Plan.txt
-Notion_ML_Template.md
-changes.txt
-
-# OS/editor
-.DS_Store
-.vscode/
+# Deployment & IDE Metadata
 .vercel/
 .vercel
-.env*
+frontend/.vercel/
+backend/.vercel/
+.vscode/
+.idea/
+.DS_Store
+*.DS_Store
+
+# Local Notes, Internal Working Files & Media (kept locally, omitted from GitHub)
+PLAN.md
 action.txt
-
-# Local deck exports
-PathFinder_updated*.pdf
-
-# Local demo/prep docs (not part of the app)
+changes.txt
+ML_Course_Plan.txt
+Notion_ML_Template.md
 DEMO_VIDEO_SCRIPT.md
 Pathfinder_Demo_Script_v3.md
+PathFinder_updated*.pdf
+deliverables/
+*.csv
+*.zip
+*.png

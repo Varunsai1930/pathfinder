@@ -1,41 +1,145 @@
 # Pathfinder
 
-[![CI](https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml)
+<p align="center">
+  <strong>Personalized Career-Path Mapping & Milestone-Based Learning Roadmaps for Tech Learners</strong>
+</p>
 
-Career-path planning SaaS for tech students. Pathfinder maps a short interest-and-skills assessment onto six entry-level technology roles, shows a transparent fit breakdown, and produces a milestone-based learning roadmap.
+<p align="center">
+  <a href="https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml">
+    <img src="https://github.com/Varunsai1930/pathfinder/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" />
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/FastAPI-0.116%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
+</p>
 
-Supported roles: Frontend Developer, Backend Developer, Data Analyst, Cloud/DevOps Engineer, Security Analyst, Data Engineer.
+---
 
-Repository: https://github.com/Varunsai1930/pathfinder
+## Overview
 
-## What you can do in the app
+**Pathfinder** is an end-to-end web platform designed to help tech students and career changers navigate entry-level technology roles. Instead of opaque, hallucination-prone AI recommendations, Pathfinder pairs **deterministic, evidence-based matching** with **constrained, grounded LLM personalization**.
 
-1. Sign in with email (Supabase OTP).
-2. Describe your goal in plain words — Pathfinder drafts the assessment from it (conversational front door), or skip and fill it in yourself.
-3. Review the three-section assessment draft: interests, skills, constraints.
-4. See ranked role cards with Pathfinder fit scores, reasons, and skill gaps.
-5. Open a career-path dashboard with milestones, a weekly plan, and task checkboxes.
+Learners can describe their ambitions in natural language or complete a structured assessment across interests, skills, and constraints. Pathfinder calculates transparent fit scores across six technology tracks, pinpoints exact skill gaps, and generates structured, milestone-driven learning roadmaps with built-in task tracking and pacing telemetry.
 
-## Repository layout
+### Supported Career Tracks
 
-- `frontend/` — React + Vite + TypeScript UI.
-- `backend/` — FastAPI API, static career catalog, matching engine, roadmap/task persistence.
-- `supabase/` — Postgres schema, RLS policies, and later table migrations.
-- `docs/` — Solution documentation outline for the Round 2 write-up.
+| Role | Core Focus |
+| :--- | :--- |
+| **Frontend Developer** | Modern web interfaces, component architecture, CSS mastery, state management |
+| **Backend Developer** | Distributed APIs, databases, authentication, systems design, performance |
+| **Data Analyst** | Exploratory analysis, SQL, visualization, data modeling, business metrics |
+| **Cloud / DevOps Engineer** | Cloud infrastructure, CI/CD pipelines, containerization, observability |
+| **Security Analyst** | Vulnerability assessment, network security, threat modeling, compliance |
+| **Data Engineer** | Data pipelines, ETL/ELT workflows, data warehousing, distributed systems |
 
-## Prerequisites
+---
 
-- Python 3.11 or newer
-- Node.js 20 or newer (npm)
-- A Supabase project (Auth + Postgres) for the signed-in flow
+## Key Features
 
-The backend still boots without live Supabase credentials. Profile, match, roadmap, and task writes then stay in memory, which is enough for unit tests. The frontend can render without Supabase variables, but sign-in and saved progress need them.
+- 💬 **Conversational Goal Intake**: Describe career goals in plain words; Pathfinder extracts assessment hints to jumpstart the profile.
+- 🎯 **Transparent Fit Scoring**: 3-part matching algorithm (55% RIASEC interest alignment, 35% skill confidence readiness, 10% work-style compatibility).
+- 🗺️ **Actionable Milestone Roadmaps**: 5-phase progressive curriculum with concrete tasks, project deliverables, and curated learning resources.
+- ⏱️ **Task & Telemetry Feedback**: Track completion, study time (`time_spent_minutes`), and comprehension quiz scores (`quiz_score`) with adaptive pacing suggestions.
+- 🛡️ **Guaranteed Deterministic Fallback**: The entire application is fully functional offline and without LLM API keys. When enabled, OpenRouter provides grounded narrative explanations backed by a multi-model fallback chain and circuit breaker.
+- 🔒 **Row-Level Security**: User authentication via Supabase OTP with verified JWT enforcement on all personal API routes.
 
-## Local setup
+---
 
-### 1. Database
+## System Architecture
 
-In the Supabase SQL editor, run the migrations in order:
+```mermaid
+flowchart TD
+    subgraph Client["Frontend (React 19 + TypeScript + Vite)"]
+        UI[User Interface & Router]
+        Store[Local Session & State]
+        Chat[Grounded Q&A Widget]
+    end
+
+    subgraph Backend["Backend API (FastAPI)"]
+        Auth[JWT Verification & Security]
+        Intake[Conversational Intake Engine]
+        Match[Deterministic Matcher<br/>55% RIASEC · 35% Skills · 10% Style]
+        Catalog[(Curated JSON Catalogs<br/>Roles · Skills · Courses)]
+        Tele[Telemetry & Task Engine]
+        LLM[Resilient OpenRouter Client<br/>Chain Fallback · Circuit Breaker]
+    end
+
+    subgraph Database["Database & Auth (Supabase)"]
+        SupaAuth[Supabase Auth OTP]
+        Postgres[(PostgreSQL with RLS<br/>Profiles · Roadmaps · Tasks)]
+    end
+
+    UI -->|Bearer JWT| Auth
+    UI -->|Sign In / OTP| SupaAuth
+    Auth --> Intake
+    Auth --> Match
+    Auth --> Tele
+    Match --> Catalog
+    Match -.->|Optional Structured Output| LLM
+    Tele --> Postgres
+    Match --> Postgres
+    Chat -->|In-Context Q&A| LLM
+```
+
+---
+
+## Repository Layout
+
+```text
+pathfinder/
+├── frontend/             # React 19 + Vite + TypeScript application
+│   ├── src/              # UI components, state, router, and design tokens
+│   ├── e2e/              # Playwright end-to-end test suite
+│   └── package.json      # Frontend scripts & dependencies
+├── backend/              # FastAPI application & matching engine
+│   ├── app/              # API routes, business logic, catalogs, and stores
+│   ├── tests/            # Pytest test suite (155+ tests)
+│   └── pyproject.toml    # Python dependencies, Ruff, & Pytest configs
+├── supabase/             # Database migrations & PostgreSQL RLS policies
+│   └── migrations/       # Versioned SQL migrations (schema, tables, indexes)
+├── .github/              # Automation & CI/CD workflows
+│   └── workflows/ci.yml  # GitHub Actions (ruff, pytest, eslint, vitest, playwright)
+├── Makefile              # Unified developer CLI commands
+├── CONTRIBUTING.md       # Open-source contribution guidelines
+└── LICENSE               # MIT License
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Python**: 3.11 or newer
+- **Node.js**: 20.x or newer (npm)
+- **Supabase Account**: Free project for PostgreSQL + Auth (optional for unit tests; backend includes in-memory fallbacks)
+
+### Quickstart with Makefile
+
+Run from the repository root:
+
+```bash
+# 1. Initialize environment files (.env and .env.local) from templates
+make setup
+
+# 2. Run backend test suite
+make backend-test
+
+# 3. Run frontend test suite
+make frontend-test
+```
+
+---
+
+### Manual Setup
+
+#### 1. Database Migrations (Supabase)
+
+In your Supabase project's **SQL Editor**, execute the migration files in numerical sequence:
 
 1. `supabase/migrations/20260813000000_initial_schema.sql`
 2. `supabase/migrations/20260816000000_roadmaps.sql`
@@ -44,10 +148,11 @@ In the Supabase SQL editor, run the migrations in order:
 5. `supabase/migrations/20260822000000_task_telemetry.sql`
 6. `supabase/migrations/20260823000000_profile_goal_text.sql`
 7. `supabase/migrations/20260831000000_recommendations_unique.sql`
+8. `supabase/migrations/20260831044845_career_certainty.sql`
 
-Enable email OTP under Authentication → Providers → Email.
+*Enable **Email OTP** under Authentication → Providers → Email in your Supabase dashboard.*
 
-### 2. Backend
+#### 2. Backend Setup
 
 ```bash
 cd backend
@@ -57,23 +162,28 @@ pip install -e '.[dev]'
 cp .env.example .env
 ```
 
-Fill `backend/.env` from the Supabase project (Settings → API):
+Configure `backend/.env`:
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `PATHFINDER_CORS_ORIGINS` — include `http://localhost:5173`
+```ini
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+PATHFINDER_CORS_ORIGINS=http://localhost:5173
 
-Then start the API:
-
-```bash
-uvicorn app.main:app --reload
+# Optional: OpenRouter API key for grounded narrative explanations
+OPENROUTER_API_KEY=
 ```
 
-Health check: `GET http://localhost:8000/health`
-Public catalog: `GET http://localhost:8000/api/v1/catalog/roles`
+Start the API server:
 
-### 3. Frontend
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+- Health Check: `http://localhost:8000/health`
+- Interactive Swagger Docs: `http://localhost:8000/docs`
+
+#### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -81,82 +191,85 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `frontend/.env.local`:
+Configure `frontend/.env.local`:
 
-- `VITE_API_URL=http://localhost:8000`
-- `VITE_SUPABASE_URL` — same project URL as the backend
-- `VITE_SUPABASE_ANON_KEY` — the publishable/anon key only (never the service role key)
+```ini
+VITE_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-Then:
+Start the Vite development server:
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:5173.
+Visit **http://localhost:5173** in your browser.
 
-## Tests
+---
 
-From `backend/` with the virtualenv active:
+## API Reference
 
+All `/api/v1/*` endpoints (except public catalog and health routes) require a Supabase JWT header: `Authorization: Bearer <token>`. User identification is derived strictly from the validated token claims.
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/health` | Service health and database connectivity probe | No |
+| `GET` | `/api/v1/catalog/roles` | Public catalog of 6 supported tech roles | No |
+| `GET` | `/api/v1/catalog/assessment`| Assessment questions, skills, and taxonomy | No |
+| `GET` | `/api/v1/catalog/courses` | Recommended course and learning resource list | No |
+| `POST` | `/api/v1/intake` | Extracts assessment hints from free-text goal input | Yes |
+| `POST` | `/api/v1/profile` | Saves learner assessment answers and constraints | Yes |
+| `GET` | `/api/v1/profile` | Retrieves current authenticated user's profile | Yes |
+| `POST` | `/api/v1/match` | Computes & persists ranked fit scores for all 6 roles | Yes |
+| `GET` | `/api/v1/match` | Returns persisted match results for current profile | Yes |
+| `POST` | `/api/v1/roadmaps/{role_id}` | Generates or refreshes roadmap for chosen role | Yes |
+| `GET` | `/api/v1/roadmaps/{role_id}` | Retrieves roadmap milestones, tasks, and status | Yes |
+| `PATCH`| `/api/v1/tasks/{task_id}` | Updates task completion, study time, and quiz score | Yes |
+| `POST` | `/api/v1/questions` | Contextual Q&A on match results and roadmap | Yes |
+
+---
+
+## Testing & Quality Assurance
+
+Pathfinder maintains strict quality, linting, and testing standards across both backend and frontend codebases.
+
+### Backend Tests
 ```bash
-pytest
+cd backend
+pytest                    # Runs 155+ unit & integration tests
+ruff check app tests      # Code quality & formatting
 ```
 
-125 tests, zero warnings (one additional test is skipped unless `OPENROUTER_API_KEY` is set; it exercises the live LLM pipeline). They cover catalog loading, representative-profile matching for all six roles, the goal-text injection guard, profile/match endpoints, and roadmap/task persistence.
-
-From `frontend/`:
-
+### Frontend Tests
 ```bash
-npm test      # vitest unit tests (components + shared match loader)
-npm run e2e   # Playwright smoke test: landing -> dashboard -> task completion
+cd frontend
+npm run lint              # ESLint checks
+npm run test              # Vitest unit & component tests
+npm run build             # Production TypeScript check & bundle build
+npm run e2e               # Playwright end-to-end integration tests
 ```
 
-The E2E test runs the real Vite dev server with a route-mocked backend and a pre-seeded Supabase session, so it needs no credentials. CI (`.github/workflows/ci.yml`) runs ruff + pytest for the backend and eslint + vitest + build + Playwright for the frontend on every push.
+### CI Pipeline
+Every push and pull request triggers `.github/workflows/ci.yml`, running Ruff, Pytest, ESLint, Vitest, TypeScript build verification, and Playwright end-to-end tests across isolated runners.
 
-## Authenticated API
+---
 
-All of the following require a Supabase JWT in `Authorization: Bearer <token>`. The user id always comes from the verified token, never from the request body.
+## Deployment
 
-- `POST /api/v1/intake` — turn a free-text career goal into reviewable assessment pre-fill hints
-- `POST /api/v1/profile` — save assessment answers
-- `GET /api/v1/profile` — load the saved profile
-- `POST /api/v1/match` — rank the roles from the saved profile and persist the result
-- `GET /api/v1/match` — load the persisted match result for the current profile version (404 when absent or stale)
-- `POST /api/v1/roadmaps/{role_id}` — create or refresh the selected role roadmap
-- `GET /api/v1/roadmaps/{role_id}` — load roadmap, milestones, and task state
-- `PATCH /api/v1/tasks/{task_id}` — toggle a task and return the next action
-- `POST /api/v1/questions` — answer a short question from the caller's match data and, optionally, an owned roadmap (`question`, optional `role_id`)
+- **Frontend**: Ready for one-click hosting on [Vercel](https://vercel.com) using `frontend/vercel.json`.
+- **Backend**: Container-ready for [Railway](https://railway.app) using `backend/railway.toml` or any Docker/Procfile runtime.
+- **Production CORS**: Update `PATHFINDER_CORS_ORIGINS` in production to allow only your production frontend domain.
 
-Compatibility aliases also exist at `/profile` and `/roadmaps/{role_id}`; they are deprecated (marked in the OpenAPI schema, and every hit logs a `pathfinder.deprecations` warning) — use the `/api/v1` equivalents.
+---
 
-## Environment files
+## Contributing
 
-Never commit populated `.env` files. Copy the templates:
+We welcome contributions! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for local setup instructions, code standards, and PR guidelines.
 
-- `backend/.env.example`
-- `frontend/.env.example`
+---
 
-## Grounded AI guidance
+## License
 
-Pathfinder's fit scores, skill gaps, milestones, tasks, and next actions are always deterministic. If `OPENROUTER_API_KEY` is configured, the API uses an ordered OpenRouter model chain (see `openrouter_models` in `backend/app/config.py`; set `OPENROUTER_MODELS=primary,secondary` to add fallbacks) for constrained enhancements:
-
-- assessment pre-fill hints from a free-text goal (`POST /api/v1/intake`) — the model returns dimension-level hints and deterministic code maps them to editable per-question suggestions;
-- two-to-three sentence fit explanations;
-- a personalized focus and pacing note for the five existing milestones; and
-- a small learner Q&A response based only on that learner's computed match and optional roadmap.
-
-Every model response is validated with strict Pydantic schemas and checked against the caller's real role and milestone IDs (skill IDs for intake). Resilience is layered: if the primary model times out, errors, or returns schema-invalid JSON, the next model in the chain is tried under a hard shared time budget (`OPENROUTER_TIMEOUT_SECONDS`, default 8s, split across the chain) so `/match` never hangs past the budget; after repeated provider failures a circuit breaker skips OpenRouter entirely for 60s and serves the deterministic fallback instantly. An unavailable key, timeout, malformed response, rate limit, or unknown reference returns deterministic fallback guidance instead. Each of these paths emits a structured JSON telemetry event (`llm_success`, `llm_fallback_triggered` with the reason, `prompt_injection_redacted`) on the `pathfinder.llm` logger.
-
-After adding `OPENROUTER_API_KEY` and deploying the backend, verify that the personalization path is live with an authenticated request; the response must contain `"generation_mode": "llm"`:
-
-```bash
-curl -X POST "$API_URL/api/v1/match" \
-  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
-```
-
-## Deploy notes
-
-- Frontend: Vercel (`frontend/vercel.json`)
-- Backend: Railway (`backend/railway.toml`)
-- In production, set `PATHFINDER_CORS_ORIGINS` to the live frontend origin (and localhost only if you still need it)
+This project is licensed under the [MIT License](LICENSE).
